@@ -43,20 +43,13 @@
 #
 # setdefprocrate $exec $fspath $numprocs $guesstime/0 GUESS/OBSERVED
 ################################################################################
+	source func.global
 	source func.errecho
 	source func.insufficient
 	source func.arithmetic
 	source func.logger
 	source func.setdefprocrate
 
-		export IOR_TESTDIR=$HOME/tasks/ior/testdir
-		if [ -z "${IOR_TESTDIR}" ]
-		then
-			errecho ${FUNCNAME} ${LINENO} "Environment variable IOR_TESTDIR not set"
-			exit 1
-		else
-		IOR_ETCDIR=${IOR_TESTDIR}/etc
-		fi
 		execname="ior"  #the name of the executable (may not be basename)
 		fspath="/p/lustre3"    #the file system under test
 		numprocs="4"  #the number of processes used to determine a default
@@ -99,5 +92,8 @@
 		procrate_default_filename=${upper_exec}.${fsbase}.default.txt
 		procrate_default_file=${IOR_ETCDIR}/${procrate_default_filename}
 
-		echo $(setdefprocrate ${execname} ${fsbase} ${numprocs} 0 "GUESS")
+		echo $(setdefprocrate ${upper_exec} $$ "dummy" 999999 ${fsbase} \
+			${numprocs} 0 "GUESS" 150)
+		echo $(setdefprocrate ${upper_exec} $$ "dummy" 999999 ${fsbase} \
+			${numprocs} 6 "OBSERVED" 150)
 		more ${IOR_ETCDIR}/*.txt

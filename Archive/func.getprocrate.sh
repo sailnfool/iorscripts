@@ -1,5 +1,5 @@
 #!/bin/bash
-################################################################################
+#######################################################################
 # This script will retrieve from the procrate table the lowest number of 
 # processes per hour that can support the current number of processes passed
 # as an argument.
@@ -17,10 +17,11 @@
 # 200|450|740|GUESS
 # 400|510|150
 #
-#
+#######################################################################
 if [ -z "${__funcgetprocrate}" ]
 then
 	export __funcgetprocrate=1
+	source func.global
 	source func.errecho
 	source func.insufficient
 	source func.arithmetic
@@ -28,13 +29,6 @@ then
 #
 	function get_procrate()
 	{
-		if [ -z "${IOR_TESTDIR}" ]
-		then
-			errecho ${FUNCNAME} ${LINENO} "Environment variable IOR_TESTDIR not set"
-			exit 1
-		fi
-		IOR_ETCDIR=${IOR_TESTDIR}/etc
-		
     ####################
 		# get_procrate $execbase $fsbasename $numprocs
     ####################
@@ -61,31 +55,30 @@ then
 		fi
 
 		execbase=${execname##*/}
+		upper_exec=$(echo ${execbase}|tr [:lower:] [:upper:])
 		fsbasename=${filesystem##*/}
 		numprocs=${ratenumprocs}
 
     ####################
-		# The data table is "banded" by all testing done in the same centurion
-		# (group of one hundred).  We round up the number of reported processes
-		# to the next multiple of 100.  This is arbitrary and finer grained
-		# groups are possible, simply by redefining the value of "procband.txt"
+		# The data table is "banded" by all testing done in the same 
+		# centurion (group of one hundred).  We round up the number of
+		# reported processes to the next multiple of 100.  This is
+		# arbitrary and finer grained groups are possible, simply by
+		# redefining the value of "procband.txt"
     ####################
 
     ####################
 		# the leading part of the process rate table is an upper case
 		# representation of the test's base name
+		#
+		# Assume we only got uppercase values.
     ####################
-		upper_exec=$(echo ${execbase}|tr [:lower:] [:upper:])
-		fileprefix=${upper_exec}.${fsbasename}
+		fileprefix=${execname}.${fsbase}
 
-		default_procrate_filename=${fileprefix}.procrate.txt
-		procrate_file=${IOR_ETCDIR}/${default_procrate_filename}
+		procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
+		procrate_minfile=${IOR_ETCDIR}/${fileprefix}.${PROCRATEMIN_SUFFIX}
+		procband_file=${IOR_ETCDIR}/${fileprefix}.${PROCBAND_SUFFIX}
 
-		default_procrate_minfilename=${fileprefix}.default.txt
-		procrate_minfile=${IOR_ETC_DIR}/${default_procrate_minfilename}
-
-		default_procband_filename=${fileprefix}.procband.txt
-		procband_file=${IOR_ETCDIR}/${default_procband_filename}
 		if [ -z "${PROC_BAND}" ]
 		then
 			if [ ! -r ${procband_file} ]
@@ -95,13 +88,22 @@ then
 			export PROC_BAND=$(cat ${procband_file})
 		fi
 
+		if [ -r ${procrate_minfile} ]
+		then
+			guess=$(cat ${procrate_minfile} )
+		else
+			guess=1
+			echo ${guess} > ${procrate_minfile}
+		fi
+
     ####################
 		# if there is no procrate file, 
 		# tell setdefprocratefile to guess and put that in procratefile
     ####################
 	  if [ ! -e ${procrate_file} ]
 		then
-			echo $(setdefprocrate ${execbase} "$$" "getproc" "999999999" ${fsbasename} ${numprocs} 0 "GUESS" ) >/dev/null
+			echo $(setdefprocrate ${upper_exec} "$$" "getproc" "999999999" \
+${fsbasename} ${numprocs} ${guess} "GUESS" )
 		fi
 
     ####################
@@ -114,32 +116,107 @@ then
 			exit 1
 		fi
 
+		if [ "$(cat ${procrate_file}|wc -l)" -eq 0 ]
+		then
+			errecho ${FUNCNAME} ${LINENO} "No lines in ${procrate_file}"
+			exit 1
+		fi
     ####################
-		# since we have a procrate file return the number of procs per
-		# hour for this band
+		# since we have a procrate file return the number milliseconds
+		# per process for this band in the table
     ####################
 		centurion=$(func_introundup ${ratenumprocs} ${PROC_BAND})
-		errecho ${FUNCNAME} ${LINENO} "centurion=${centurion}" >&2
+		#errecho ${FUNCNAME} ${LINENO} "centurion=${centurion}" >&2
 
     ####################
+		# The file has been sorted in ascending numeric order by the
+		# first field.
+		#
 		# We have to read squentially through the file to get the largest
 		# value less than or equal to centurion
     ####################
 		while IFS= read -r line; do
+			#errecho ${FUNCNAME} ${LINENO} "line=$line" >&2
 			centurionband=$(echo $line | awk -F "|" '{print $1}')
+			#errecho ${FUNCNAME} ${LINENO} "centurionband=$centurionband" >&2
 			low_milliseconds=$(echo $line | awk -F "|" '{print $2}')
+			#errecho ${FUNCNAME} ${LINENO} "low_milliseconds=$low_milliseconds" >&2
 			high_milliseconds=$(echo $line | awk -F "|" '{print $3}')
-			errecho ${FUNCNAME} ${LINENO} "line=${line}" >&2
-			errecho ${FUNCNAME} ${LINENO} "centurionband=${centurionband}" >&2
-			errecho ${FUNCNAME} ${LINENO} "low_milliseconds=${low_milliseconds}" >&2
-			errecho ${FUNCNAME} ${LINENO} "high_milliseconds=${high_milliseconds}" >&2
+			#errecho ${FUNCNAME} ${LINENO} "high_milliseconds=$high_milliseconds" >&2
+
+			if [ -z "${low_milliseconds}" ]
+			then
+				low_milliseconds=${one_ms_second}
+			fi
+			if [ -z "${high_milliseconds}" ]
+			then
+				high_milliseconds=${one_ms_second}
+			fi
+			#errecho ${FUNCNAME} ${LINENO} \
+				#"line=${line}" >&2
+			#errecho ${FUNCNAME} ${LINENO} \
+				#"centurionband=${centurionband}" >&2
+			#errecho ${FUNCNAME} ${LINENO} \
+				#"low_milliseconds=${low_milliseconds}" >&2
+			#errecho ${FUNCNAME} ${LINENO} \
+				#"high_milliseconds=${high_milliseconds}" >&2
 			if [ "${centurionband}" -ge "${centurion}" ]
 			then
 				break
 			fi
 		done < ${procrate_file}
-		# If no match was found, we use the last entry as the proxy for a new
-		# higher set.
+		# If no match was found, we use the last entry as the proxy
+		# for a new higher set.
+		if [ -z "${high_milliseconds}" ]
+		then
+			errecho ${FUNCNAME} ${LINENO} \
+				"high_milliseconds is NULL" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"line=${line}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"centurionband=${centurionband}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"low_milliseconds=${low_milliseconds}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"high_milliseconds=${high_milliseconds}" >&2
+			exit 1
+		fi
+
+		####################
+		# Verify that high_milliseconds is an integer
+		####################
+		reinteger='^[0-9]+$'
+		# resignedinteger='^[+-]?[0-9]+$'
+		# resigneddecimal='^[+-]?[0-9]+([.][0-9]+)?$'
+		if [[ ! "${high_milliseconds}" =~ ${reinteger} ]]
+		then
+			errecho ${FUNCNAME} ${LINENO} \
+        "high_milliseconds not an integer"
+			errecho ${FUNCNAME} ${LINENO} \
+				"line=${line}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"centurionband=${centurionband}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"low_milliseconds=${low_milliseconds}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"high_milliseconds=${high_milliseconds}" >&2
+			exit 1
+		else
+			if [ ${high_milliseconds} -eq 0 ]
+			then
+				errecho ${FUNCNAME} ${LINENO} \
+          "high_milliseconds must be non-zero"
+			errecho ${FUNCNAME} ${LINENO} \
+				"line=${line}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"centurionband=${centurionband}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"low_milliseconds=${low_milliseconds}" >&2
+			errecho ${FUNCNAME} ${LINENO} \
+				"high_milliseconds=${high_milliseconds}" >&2
+				exit 1
+			fi
+		fi
 		echo ${high_milliseconds}
 	}
 	export -f get_procrate

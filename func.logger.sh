@@ -1,7 +1,7 @@
 #!/bin/bash
-# Log entries willbe single line records and will  contain multiple fields
-# and the fields will be separated by a vertical pipe character "|" to
-# separate the fields of the record.
+# Log entries willbe single line records and will  contain multiple
+# fields and the fields will be separated by a vertical pipe
+# character "|" to separate the fields of the record.
 #
 # EVENT|execname|process#|BATCH#|Test#|TimeSTAMP|Event|Specific|Fields
 #
@@ -10,9 +10,10 @@
 #		FINISH Record for when the test ends
 #		DELTA Record that records information about the wall time of the 
 #			Test - about the interval between START and FINISH
-#		RATE Record that tracks information about the rate at which the processes
-#			execute to insure that we are able to schedule/allocate adequate time
-#			for future runs of the application
+#		RATE Record that tracks information about the rate at which the
+#     processes	execute to insure that we are able to
+#     schedule/allocate adequate time	for future runs of
+#     the application
 if [ -z "${__funclogger}" ]
 then
 	export __funclogger=1
@@ -28,14 +29,14 @@ then
 		# system, it is passed in.  Every 20 tests, output the titles
 		# for the records in the log file
 		####################
-		# errecho ${LINENO} ${FUNCNAME} "#5=$5"
+		# errecho ${FUNCNAME} ${LINENO} "#5=$5"
 		if [[ ! $5 =~ -*[0-9]+ ]]
 		then
 			mod_test_number="999999"
 		else
 			mod_test_number=$(expr $5 % 20)
 		fi
-		# errecho ${LINENO} ${FUNCNAME} "#mod_test_number=$mod_test_number"
+		# errecho ${FUNCNAME} ${LINENO} "#mod_test_number=$mod_test_number"
 		if [ ${mod_test_number} -eq 0 ]
 		then
 			####################
@@ -74,7 +75,7 @@ then
 		NUMARGS=5
 		if [ $# -lt ${NUMARGS} ]
 		then
-			insufficient ${LINENO} ${FUNCNAME} ${NUMARGS} $@
+			insufficient ${FUNCNAME} ${LINENO} ${NUMARGS} $@
 		fi
 		logevent="$1"
 		logexec="$2"
@@ -89,8 +90,10 @@ then
 		then
 			if [ -z "${IOR_TESTDIR}" ]
 			then
-				errecho ${LINENO} ${FUNCNAME} "Environment variable IOR_TESTDIR not set"
-				errecho ${LINENO} ${FUNCNAME} "Environment variable IOR_TESTLOG not set"
+				errecho ${FUNCNAME} ${LINENO} \
+					"Environment variable IOR_TESTDIR not set"
+				errecho ${FUNCNAME} ${LINENO} \
+					"Environment variable IOR_TESTLOG not set"
 				exit 1
 			else
 				export IOR_ETCDIR=${IOR_TESTDIR}/etc
@@ -110,14 +113,17 @@ then
 				NUMSTARTARGS=9
 				if [ $# -lt ${NUMSTARTARGS} ]
 				then
-					errecho ${LINENO} "${FUNCNAME} error in ${logevent} parameter count"
-					insufficient ${LINENO} ${FUNCNAME} ${NUMSTARTARGS} $@
+					errecho ${FUNCNAME} ${LINENO} \
+						"error in ${logevent} parameter count"
+					insufficient ${FUNCNAME} ${LINENO} ${NUMSTARTARGS} $@
 				fi
 # 				logfilesystem="$6"
 # 				logdate_began="$7"
 # 				lognumprocs="$8"
 # 				lognumnodes="$9"
-				echo "${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}" >> ${IOR_TESTLOG}
+				echo \
+					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}" \
+					>> ${IOR_TESTLOG}
 				;;
 			FINISH)	# Handle the FINISH Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -131,14 +137,18 @@ then
 				NUMFINISHARGS=9
 				if [ $# -lt ${NUMFINISHARGS} ]
 				then
-					errecho ${LINENO} "${FUNCNAME} error in ${logevent} parameter count"
-					insufficient ${LINENO} ${FUNCNAME} ${NUMFINISHARGS} $@
+					errecho ${FUNCNAME} ${LINENO} \
+						"error in ${logevent} parameter count"
+					insufficient ${FUNCNAME} ${LINENO} ${NUMFINISHARGS} $@
 				fi
 # 				logfilesystem="$6"
 # 				logdate_finish="$7"
 # 				lognumprocs="$8"
 # 				lognumnodes="$9"
-				echo "${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}" >> ${IOR_TESTLOG}
+#	        log_completion="${10}"
+				echo \
+					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}" \
+					>> ${IOR_TESTLOG}
 				;;
 			DELTA)	# Handle the DELTA Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -149,17 +159,23 @@ then
 					####################
 					echo "${deltatitles}" >> ${IOR_TESTLOG}
 				fi
-				NUMDELTAARGS=9
+				NUMDELTAARGS=11
 				if [ $# -lt ${NUMDELTAARGS} ]
 				then
-					errecho ${LINENO} "${FUNCNAME} error in ${logevent} parameter count"
-					insufficient ${LINENO} ${FUNCNAME} ${NUMDELTAARGS} $@
+					errecho ${FUNCNAME} ${LINENO} \
+						"error in ${logevent} parameter count"
+					insufficient ${FUNCNAME} ${LINENO} ${NUMDELTAARGS} $@
 				fi
 # 				logfilesystem="$6"
 # 				logdate_timedelta="$7"
 # 				log_time_delta_Seconds="$8"
 # 				lognumprocs="$9"
-				echo "${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}" >> ${IOR_TESTLOG}
+#         log_lo_rate="$10"
+#         log_hi_rate="$11"
+#					log_completion="$12}"
+				echo \
+	"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}|${11}|${12}" \
+					>> ${IOR_TESTLOG}
 				;;
 			RATE)	# Handle the RATE Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -173,15 +189,18 @@ then
 				NUMRATEARGS=10
 				if [ $# -lt ${NUMRATEARGS} ]
 				then
-					errecho ${LINENO} "${FUNCNAME} error in ${logevent} parameter count"
-					insufficient ${LINENO} ${FUNCNAME} ${NUMRATEARGS} $@
+					errecho ${FUNCNAME} ${LINENO} \
+						"error in ${logevent} parameter count"
+					insufficient ${FUNCNAME} ${LINENO} ${NUMRATEARGS} $@
 				fi
 # 				logfilesystem=$6
 # 				logdelta=$7
 # 				lognumprocs=$8
 # 				logroundup=$9
 # 				lognewrate=$10
-				echo "${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}" >> ${IOR_TESTLOG}
+				echo \
+					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}" \
+					>> ${IOR_TESTLOG}
 				;;
 			\?)
 				errecho ${FUNCNAME} ${LINENO} "Invalid Log Type ${logevent}"
