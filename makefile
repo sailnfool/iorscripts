@@ -4,13 +4,12 @@
 	cp $? `basename $? .sh`
 	chmod +x `basename $? .sh`
 
-INSTALL = ior.ex1 ior.ex2 ior.ex3 ior.ex4 \
-					md.ex1 md.ex2 \
-					ior2runner dobunchior2 \
+INSTALL = ior.ex4 \
+					md.ex2 \
+					ior3runner dobunchior3 \
 					md4runner dobunchmd3 \
-					func.logger func.procrate func.getprocrate func.setdefprocrate \
-					argsfibonacci argsexponent argsgenrange argspowers argsdouble \
-					test.setdefprocrate
+					func.logger \
+					func.global2
 
 .PHONY: all clean uninstall
 all: $(INSTALL)
