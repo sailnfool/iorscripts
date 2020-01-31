@@ -701,7 +701,10 @@ tee -a ${iortestname}
 			# we run the benchmark in this band of processes.
 			####################
 			completion=FAIL
+			oldtime=${hi_ms[$band]}
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
+			errecho ${FUNCNAME} ${LINENO} \
+				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 
 			####################
 			# Following a failure we don't have true observed time. As
@@ -760,7 +763,8 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		####################
 		$(logger "DELTA" "${IOR_UPPER}" "$$" "${iorbatchstring}" \
 "${iortestnumber}" "${fsbase}" "${time_delta}" \
-"${time_delta_seconds}" "${numprocs}" ${time_delta} ${time_delta})
+"${time_delta_seconds}" "${numprocs}" \
+"${lo_ms[$band]}" "${hi_ms[$band]}" "${completion}" )
 
 
 		####################
