@@ -93,7 +93,7 @@ do
 	echo "ior3runner -f ${filesystem} -p 10 -o "-Y" ${proclist}"
 	ior3runner -f ${filesystem} -p 10  -o "-Y" ${proclist}
 	echo "ior3runner -f ${filesystem} -p 50  ${proclist}"
-	ior3runner -f ${filesystem} -p 50  -o ${proclist}
+	ior3runner -f ${filesystem} -p 50  ${proclist}
 	echo "ior3runner -f ${filesystem} -p 10 ${proclist}"
-	ior3runner -f ${filesystem} -p 10  -o ${proclist}
+	ior3runner -f ${filesystem} -p 10  ${proclist}
 done

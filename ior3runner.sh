@@ -267,7 +267,7 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the
 # test number
 ####################
-echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+echo $(func_getlock) >> ${LOCKERRS}
 
 iortestnumber=$(cat ${IOR_TESTNUMBERFILE})
 
@@ -317,7 +317,7 @@ iormetadatafile=${IOR_ETCDIR}/${IOR_UPPER}.VERSION.info.txt
 iorbuilddate=$(sourcedate -t ${iorinstalldir})
 iorversion=$(strings ${IOR_EXEC} | egrep '^IOR-')
 
-echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+echo $(func_getlock) >> ${LOCKERRS}
 
 echo "IOR Version info" > ${iormetadatafile}
 echo ${iorversion} >> ${iormetadatafile}
@@ -367,7 +367,9 @@ then
 	errecho -e ${FUNCNAME} ${LINENO} ${USAGE} >&2
 	exit 1
 fi
-
+echo $(func_getlock) >> ${LOCKERRS}
+mount | grep ${fsbase} >> ${IOR_METADATAFILE}
+echo $(func_releaselock) >> ${LOCKERRS}
 ####################
 # This override for Memory is to minimize the effects of caching
 # written data to be read back.  This should really only appear on
@@ -532,7 +534,13 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 			"Need Default Band (e.g. 100), default MS per Process and..."
 		errecho ${FUNCNAME} ${LINENO} \
 			"the amount by which to increase guess times after failures"
-		exit 1
+		####################
+		# Instead of exiting we could emit a default file here
+		####################
+		echo $(func_getlock) >> ${LOCKERRS}
+		echo "100|300|20" > ${procdefault_file}
+		echo $(func_releaselock) >> ${LOCKERRS}
+		#exit 1
 	fi
 	linesread=0
 	OLDIFS=$IFS
@@ -548,16 +556,17 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 
 	if [ ${linesread} -eq 0 ]
 	then
-		errecho ${FUNCNAME} ${LINENUM} \
+		errecho ${FUNCNAME} ${LINENO} \
 			"Could not read ${procdefault_file}"
 		exit 1
 	fi
+
 	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
 
 	if [ ! -r ${procrate_file} ]
 	then
 		errecho ${FUNCNAME} ${LINENO} \
-			"File Not Found ${procdefault_file}"
+			"File Not Found ${procrate_file}"
 		errecho ${FUNCNAME} ${LINENO} \
 			"Creating a one-line default table"
 		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS" > ${procrate_file}
@@ -584,8 +593,8 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	
 	if [ ! ${hi_ms[${band}]+_} ]
 	then
-		lo_ms[${band}]=$DEFAULT_MS
-		hi_ms[${band}]=$DEFAULT_MS
+		lo_ms[${band}]=${DEFAULT_MS}
+		hi_ms[${band}]=${DEFAULT_MS}
 		gobs[${band}]="GUESS"
 	fi
 
@@ -677,26 +686,56 @@ tee -a ${iortestname}" | tee -a ${iortestname}
 ${ioropts} -o ${iorfilesystem}/$USER/ior.seq | \
 tee -a ${iortestname}
 		srun_status=$?
+
+		####################
+		# We kept the completion status.  There could be many reasons
+		# why the benchmark failed, but the most likely culprit is
+		# exceeding the requested time. 
+		####################
 		if [ $srun_status -ne 0 ]
 		then
+			####################
+			# Remember that we failed and adjust the hi_ms time for this
+			# band accordingly by keeping the logged time for next run
+			# at a level that is FAIL_PERCENT higher for the next time
+			# we run the benchmark in this band of processes.
+			####################
 			completion=FAIL
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
+
+			####################
+			# Following a failure we don't have true observed time. As
+			# a result, we have to mark this increased amount of time as
+			# a guess.
+			####################
 			gobs[$band]=GUESS
-			if [ -r ${procrate_file}.old.txt ]
-			then
-				mv ${procrate_file}.old.txt ${procrate_file}.older.txt
-			fi
+
+			####################
+			# We sort the old file before we remember it as the old file
+			# This is not needed for a computational reason but it is
+			# easier for people to read a sorted file
+			####################
 			sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
+			
+			####################
+			# We remove the current file and write a new one dumped from
+			# the Associative array where we keep the data.
+			####################
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
 				echo \
 			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
-					>> ${procrate_file}
+					>> ${PROCRATE_TMPFILE}
 			done
-			sort -u -n -t "|" ${procrate_file} > /tmp/s$$
-			mv /tmp/s$$ ${procrate_file}
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+			rm -f ${PROCRATE_TMPFILE}
 		else
+
+			####################
+			# We will mark the successful completion we remember the success
+			# or fail to mark it in the log.
+			####################
 			completion=SUCCESS
 		fi
 
@@ -709,14 +748,12 @@ tee -a ${iortestname}
 "${srun_NODES}" ${completion} )
 
 		####################
-		# do date arithmetic to get the delta
+		# do date arithmetic to get the delta in HMS and seconds
 		####################
   	time_delta=$(date -d @$(( $(date -d "${date_finished}" +%s) - \
 $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
   	time_delta_seconds=$(date -d @$(( $(date -d \
 "${date_finished}" +%s) - $(date -d "${date_began}" +%s) )) -u +'%s')
-  	#time_delta_seconds=$(( $(date -d "${date_finished}" +%s) - \
-#$(date -d "${date_began}" +%s) ))
 
 		####################
 		# Log the delta and the rate
@@ -724,60 +761,56 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		$(logger "DELTA" "${IOR_UPPER}" "$$" "${iorbatchstring}" \
 "${iortestnumber}" "${fsbase}" "${time_delta}" \
 "${time_delta_seconds}" "${numprocs}" ${time_delta} ${time_delta})
-#		$(logger "RATE" "${IOR_UPPER}" "$$" "${iorbatchstring}" \
-#"${iortestnumber}" "${fsbase}" "${time_delta}" "${numprocs}" \
-#$(func_introundup ${numprocs} 100) )
 
 
 		####################
 		# Record the new rate in the procrate table
+		# We compute the number of milliseconds/process rounding up
 		####################
 		((new_ms=(time_delta_seconds*one_ms_second)/numprocs))
+		((new_ms+=((time_delta__seconds*one_ms_second)%numprocs>0)?1:0))
+
+		####################
+		# if we have reached a new high for this band, update the high
+		####################
+		changed="FALSE"
 		if [ ${new_ms} -gt ${hi_ms[$band]} ]
 		then
 			hi_ms[$band]=${new_ms}
 			gobs[$band]="OBSERVED"
-			if [ -r ${procrate_file}.old.txt ]
+			changed=TRUE
+		else
+			####################
+			# if we have reached a new low for this band, update the low
+			####################
+			if [ ${new_ms} -lt ${lo_ms[$band]} ]
 			then
-				mv ${procrate_file}.old.txt ${procrate_file}.older.txt
+				lo_ms[$band]=${new_ms}
+				gobs[$band]="OBSERVED"
+				changed=TRUE
 			fi
-			sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
+		fi
+		####################
+		# if the table changed, then save it.
+		####################
+		if [ "${changed}" = "TRUE" ]
+		then
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
 				echo \
 			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
-					>> ${procrate_file}
+					>> ${PROCRATE_TMPFILE}
 			done
-			sort -u -n -t "|" ${procrate_file} > /tmp/s$$
-			mv /tmp/s$$ ${procrate_file}
-		else
-			if [ ${new_ms} -lt ${lo_ms[$band]} ]
-			then
-				lo_ms[$band]=${new_ms}
-				gobs[$band]="OBSERVED"
-				if [ -r ${procrate_file}.old.txt ]
-				then
-					mv ${procrate_file}.old.txt ${procrate_file}.older.txt
-				fi
-				sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
-				rm ${procrate_file}
-				for band in "${!lo_ms[@]}"
-				do
-					echo \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
-						>> ${procrate_file}
-				done
-				sort -u -n -t "|" ${procrate_file} > /tmp/s$$
-				mv /tmp/s$$ ${procrate_file}
-			fi
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
 		fi
+		
+		####################
+		# Now we log the rate from this run
+		####################
 		$(logger "RATE" "${IOR_UPPER}" "$$" "${batchstring}" \
 			"${testnumber}" "${base}" "${srun_time}" "${numprocs}" \
 			"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" )
-#		echo $(setdefprocrate "${IOR_UPPER}" "$$" "${iorbatchstring}" \
-#"${iortestnumber}" "${fsbase}" ${numprocs} \
-#"${time_delta_seconds}" "OBSERVED" ${completion} )
 	fi
 done
 exit 0

@@ -22,9 +22,12 @@ then
 	export TESTLOG_SUFFIX=testlog.txt
 	export IOR_TESTLOG=${IOR_ETCDIR}/${IOR_UPPER}.${TESTLOG_SUFFIX}
 	export MD_TESTLOG=${IOR_ETCDIR}/${MD_UPPER}.${TESTLOG_SUFFIX}
+	export PROCRATE_TMPFILE=${IOR_ETCDIR}/tmp.$$.${PROCRATE_SUFFIX}
+
 	export PROC_BAND=100
 	export DEFAULT_MS=100
 	export FAIL_PERCENT=20
+	export LOCKERRS=${IOR_ETCDIR}/lockerrs
 
 
 	####################
