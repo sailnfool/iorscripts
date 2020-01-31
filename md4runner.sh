@@ -366,8 +366,8 @@ do
 	# the MinNodesDivisor was set to 100/50 -> 2, so that MinNodes
 	# would be set to 5
 	####################
-	((MinNodes=numprocs / MinNodesDivisor))
-	((MinNodes=(((numprocs%MinNodesDivisor>0)?1:0))))
+	((MinNodes=numprocs/MinNodesDivisor))
+	((MinNodes+=(((numprocs%MinNodesDivisor>0)?1:0))))
 
 	####################
 	# If the user specified nodes manually (-N #), then you will use
@@ -378,7 +378,7 @@ do
 	then
 		srun_NODES=${MinNodes}
 	fi
-  #	errecho ${FUNCNAME} ${LINENO} "srun_NODES=${srun_NODES}"
+  	errecho ${FUNCNAME} ${LINENO} "srun_NODES=${srun_NODES}"
 
 	####################
 	# This is a safety check to insure that the number of NODES is
@@ -393,8 +393,8 @@ do
 	then
 		srun_NODES=1
 	fi
-  #	errecho ${FUNCNAME} ${LINENO} "srun_NODES=${srun_NODES}"
-  #	errecho ${FUNCNAME} ${LINENO} "MaxNodes=${MaxNodes}"
+  	errecho ${FUNCNAME} ${LINENO} "srun_NODES=${srun_NODES}"
+  	errecho ${FUNCNAME} ${LINENO} "MaxNodes=${MaxNodes}"
 
 	####################
 	# Check to see if the user requested number of Nodes is greater than
@@ -469,8 +469,9 @@ do
 		errecho ${FUNCNAME} ${LINENO} \
 			"File Not found ${procrate_file}"
 		errecho ${FUNCNAME} ${LINENO} \
-			"Creating a on-line default table"
+			"Creating a one line default table"
 		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS" > ${procrate_file}
+		cat ${procrate_file}
 	fi
 	linesread=0
 	OLDIFS=$IFS
@@ -565,7 +566,7 @@ x="${mdtestresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	if [ -d ${dirhead} ]
 	then
 			dircnt="$(find ${dirhead} -type d -print | wc -l)"
-			filecnt"$(find ${dirhead} -type f -print | wc -l)"
+			filecnt="$(find ${dirhead} -type f -print | wc -l)"
 		if [ $dircnt -ge 1 ]
 		then
 			if [ $filecnt -gt 0 ]
@@ -602,13 +603,13 @@ tee -a ${mdtestname}" | tee -a ${mdtestname}
 		# Log the START
 		####################
 		$(logger "START" "${MD_BASE}" "$$" "${mdbatchstring}" \
-"${mdtestnumber}" "${fsbase}" "${date_began}" "${numprocs}"\
+"${mdtestnumber}" "${fsbase}" "${date_began}" "${numprocs}" \
 "${srun_NODES}")
 
 		####################
 		# Run the benchmark test
 		####################
-  	srun -n "${numprocs}" -N "${srun_NODES}" -t "${srun_time}"\
+  	srun -n "${numprocs}" -N "${srun_NODES}" -t "${srun_time}" \
 "${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq | \
 tee -a "${mdtestname}"
 		srun_status=$?
@@ -627,7 +628,10 @@ tee -a "${mdtestname}"
 			# we run the benchmark in this band of processes.
 			####################
 			completion=FAIL
+			oldtime=${hi_ms[$band]}
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
+			errech ${FUNCNAME} ${LINENO} \
+				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 
 			####################
 			# Following a failure we don't have true observed time. As
@@ -664,14 +668,13 @@ tee -a "${mdtestname}"
 			####################
 			completion=SUCCESS
 		fi
-
 		####################
 		# Mark the completion and log it
 		####################
 		date_finished=$(date)
-		$(logger "FINISH" "${MD_BASE}" "$$" "${mdbatchstring}"\
-"${mdtestnumber}" "${fsbase}" "${date_finished}" "${numprocs}"\
-"${srun_NODES}")
+		$(logger "FINISH" "${MD_BASE}" "$$" "${mdbatchstring}" \
+"${mdtestnumber}" "${fsbase}" "${date_finished}" "${numprocs}" \
+"${srun_NODES}" "${completion}")
 		####################
 		# Do date arithmetic to get the delts in HMS and in seconds
 		####################
@@ -683,9 +686,9 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		####################
 		# Log the delta and the rate
 		####################
-		$(logger "DELTA" "${MD_BASE}" "$$" "${mdbatchstring}"\
-"${mdtestnumber}" "${fsbase}" "${time_delta}" "${time_delta_seconds}"\
-"${numprocs}")
+		$(logger "DELTA" "${MD_BASE}" "$$" "${mdbatchstring}" \
+"${mdtestnumber}" "${fsbase}" "${time_delta}" "${time_delta_seconds}" \
+"${numprocs}" "${lo_ms[$band]}" "${hi_ms[$band]}" "${completion}" )
 
 		####################
 		# Record the new rate in the procrate table
@@ -734,7 +737,7 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		####################
 		$(logger "RATE" "${MD_UPPER}" "$$" "${mdbatchstring}" \
 "${mdtestnumber}" "${base}" "${srun_time}" "${numprocs}" \
-"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}"
+"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}")
 	fi
 done
 exit 0
