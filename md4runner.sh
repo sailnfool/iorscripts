@@ -43,13 +43,12 @@
 #     application
 #
 #######################################################################
-source func.global
+source func.global2
 source func.errecho
 source func.insufficient
-source func.getprocrate
 source func.logger
-source func.hmsout
 source func.arithmetic
+source func.hmsout
 
 USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> <#procs> ...\r\n
 \t\trun the mdtest benchmark with default options\r\n
@@ -322,7 +321,7 @@ then
 fi
 echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
 mount | grep ${fsbase} >> ${MD_METADATAFILE}
-echo $(func_releaselock)
+echo $(func_releaselock) >> ${IOR_ETCDIR}/lockerrs
 
 ####################
 # Standard options we don't override
@@ -368,6 +367,7 @@ do
 	# would be set to 5
 	####################
 	((MinNodes=numprocs / MinNodesDivisor))
+	((MinNodes=(((numprocs%MinNodesDivisor>0)?1:0))))
 
 	####################
 	# If the user specified nodes manually (-N #), then you will use
@@ -423,38 +423,104 @@ do
 	####################
 	fileprefix=${MD_UPPER}.${fsbase}
 
-	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
-	procrate_minfile=${IOR_ETCDIR}/${fileprefix}.${PROCRATEMIN_SUFFIX}
-	procband_file=${IOR_ETCDIR}/${fileprefix}.${PROCBAND_SUFFIX}
+	procdefault_file=${IOR_ETCDIR}/${fileprefix}.${PROCDEFAULT_SUFFIX}
 
-	if [ ! -e ${procrate_minfile} ]
+	if [ ! -r ${procdefault_file} ]
 	then
+		errecho ${FUNCNAME} ${LINENO} "File Not Found ${procdefault_file}"
+		errecho ${FUNCNAME} ${LINENO} \
+			"Need a Default Band (e.g. 100 processes, default millisconds"
+		errecho ${FUNCNAME} ${LINENO} \
+			"per process and the amount by which to increase guess times"
+		errecho ${FUNCNAME} ${LINENO} \
+			"after failures"
+
+		####################
+		# Instead of exiting we could emit a default file here
+		####################
 		echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
-		echo "150" > ${procrate_minfile}
-		defaultprocrate=$(cat ${procrate_minfile})
-		echo $(func_releaselock)
-	else
-		echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
-		defaultprocrate=$(cat ${procrate_minfile})
-		echo $(func_releaselock)
+		echo "100|300|20" > ${procdefault_file}
+		echo $(func_releaselock) >> ${IOR_ETCDIR}/lockerrs
+		#exit 1
+	fi
+	linesread=0
+	OLDIFS=$IFS
+	IFS="|"
+	while read -r band default percent
+	do
+		export PROC_BAND=${band}
+		export DEFAULT_MS=${default}
+		export FAIL_PERCENT=${percent}
+		((++linesread))
+	done < ${procdefault_file}
+	IFS=$OLDIFS
+
+	if [ ${linesread} -eq 0 ]
+	then
+		errecho ${FUNCNAME} ${LINENO} \
+			"Could not read ${procdefault_file}"
+		exit 1
 	fi
 
-	procrate_value=$(get_procrate "${MD_BASE}" "${fsbase}" "${numprocs}")
+	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
 
-	errecho ${FUNCNAME} ${LINENO} "procrate_value=${procrate_value}"
+	if [ ! -r ${procrate_file} ]
+	then
+		errecho ${FUNCNAME} ${LINENO} \
+			"File Not found ${procrate_file}"
+		errecho ${FUNCNAME} ${LINENO} \
+			"Creating a on-line default table"
+		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS" > ${procrate_file}
+	fi
+	linesread=0
+	OLDIFS=$IFS
+	IFS="|"
+	while read -r band low high gob
+	do
+		((++linesread))
+		lo_ms[$band]=$low
+		hi_ms[$band]=$high
+		gobs[$band]=$gob
+	done < ${procrate_file}
+	IFS=$OLDIFS
 
-	((milliseconds=procrate_value*numprocs))
-	((srun_time_seconds=miliseconds/one_ms_second))
-	((srun_time_seconds=(((milliseconds%one_ms_second>0)?1:0))))
+	if [ ${linesread} -eq 0 ]
+	then
+		errecho ${FUNCNAME} ${LINENO} \
+			"Could not read ${procrate_file}"
+		exit 1
+	fi
+
+	band=$(func_introundup ${numprocs} ${PROC_BAND})
+
+	if [ ! ${hi_ms[${band}]+_} ]
+	then
+		lo_ms[${band}]=${DEFAULT_MS}
+		hi_ms[${band}]=${DEFAULT_MS}
+		gobs[${band}]="GUESS"
+	fi
+
+	errecho ${FUNCNAME} ${LINENO} \
+		"hi_ms[$band]=${hi_ms[$band]}"
+
+	((milliseconds=hi_ms[$band]*numprocs))
+	((srun_time_seconds=milliseconds/one_ms_second))
+	((srun_time_second+=(((milliseconds%one_ms_second>0)?1:0))))
 
 	####################
-	# This is purely defensive, there is no way that the number of seconds
-	# should be zero if procrate_value was not zero
+	# This is purely defensive, there is no way that the number of
+  # seconds should be zero if hi_ms[$band] was not zero
 	####################
 	if [ ${srun_time_seconds} -le 0 ]
 	then
 		errecho ${FUNCNAME} ${LINENO} \
-			"Invalid run time: srun_time_seconds=${srun_time_seconds}"
+      "Invalid run time: srun_time_seconds=${srun_time_seconds}" >&2
+		errecho ${FUNCNAME} ${LINENO} \
+      "hi_ms[$band]=${hi_ms[$band]}" >&2
+		errecho ${FUNCNAME} ${LINENO} \
+      "numprocs=${numprocs}" >&2
+		errecho ${FUNCNAME} ${LINENO} \
+      "milliseconds=${milliseconds}" >&2
 		exit 1
 	fi
 
@@ -523,6 +589,7 @@ x="${mdtestresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
  	echo "srun -n ${numprocs} -N ${srun_NODES} -t ${srun_time}\
 ${MD_EXEC} ${mdopts} -d ${filesystem}/$USER/md.seq | \
 tee -a ${mdtestname}" | tee -a ${mdtestname}
+	srun_status=$?
 
 	####################
 	# If we are not just testing, then run the test.
@@ -530,28 +597,144 @@ tee -a ${mdtestname}" | tee -a ${mdtestname}
 	if [ "${runner_testing}" = "FALSE" ]
 	then
 		date_began=$(date)
+
+		####################
+		# Log the START
+		####################
 		$(logger "START" "${MD_BASE}" "$$" "${mdbatchstring}" \
 "${mdtestnumber}" "${fsbase}" "${date_began}" "${numprocs}"\
 "${srun_NODES}")
+
+		####################
+		# Run the benchmark test
+		####################
   	srun -n "${numprocs}" -N "${srun_NODES}" -t "${srun_time}"\
 "${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq | \
 tee -a "${mdtestname}"
+		srun_status=$?
+
+		####################
+		# We kept the completion status.  There could be many reasons
+		# why the benchmark failed, but the most likely culprit is
+		# exceeding the requested time. 
+		####################
+		if [ $srun_status -ne 0 ]
+		then
+			####################
+			# Remember that we failed and adjust the hi_ms time for this
+			# band accordingly by keeping the logged time for next run
+			# at a level that is FAIL_PERCENT higher for the next time
+			# we run the benchmark in this band of processes.
+			####################
+			completion=FAIL
+			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
+
+			####################
+			# Following a failure we don't have true observed time. As
+			# a result, we have to mark this increased amount of time as
+			# a guess.
+			####################
+			gobs[$band]=GUESS
+
+			####################
+			# We sort the old file before we remember it as the old file
+			# This is not needed for a computational reason but it is
+			# easier for people to read a sorted file
+			####################
+			sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
+			
+			####################
+			# We remove the current file and write a new one dumped from
+			# the Associative array where we keep the data.
+			####################
+			rm ${procrate_file}
+			for band in "${!lo_ms[@]}"
+			do
+				echo \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
+					>> ${PROCRATE_TMPFILE}
+			done
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+			rm -f ${PROCRATE_TMPFILE}
+		else
+
+			####################
+			# We will mark the successful completion we remember the success
+			# or fail to mark it in the log.
+			####################
+			completion=SUCCESS
+		fi
+
+		####################
+		# Mark the completion and log it
+		####################
 		date_finished=$(date)
 		$(logger "FINISH" "${MD_BASE}" "$$" "${mdbatchstring}"\
 "${mdtestnumber}" "${fsbase}" "${date_finished}" "${numprocs}"\
 "${srun_NODES}")
+		####################
+		# Do date arithmetic to get the delts in HMS and in seconds
+		####################
   	time_delta=$(date -d @$(( $(date -d "${date_finished}" +%s) -\
 $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
   	time_delta_seconds=$(date -d @$(( $(date -d \
 "${date_finished}" +%s) - $(date -d "${date_began}" +%s) )) -u +'%s')
-  	#time_delta_seconds=$(( $(date -d "${date_finished}" +%s) -\
-#$(date -d "${date_began}" +%s) ))
+
+		####################
+		# Log the delta and the rate
+		####################
 		$(logger "DELTA" "${MD_BASE}" "$$" "${mdbatchstring}"\
 "${mdtestnumber}" "${fsbase}" "${time_delta}" "${time_delta_seconds}"\
 "${numprocs}")
-		echo $(setdefprocrate "${MD_BASE}" "$$" "${mdbatchstring}"\
-"${mdtestnumber}" "${fsbase}" "${numprocs}"\
-"${time_delta_seconds}" "OBSERVED") >dev/null
+
+		####################
+		# Record the new rate in the procrate table
+		# We compute the number of milliseconds/process rounding up
+		####################
+		((new_ms=(time_delta_seconds*one_ms_second)/numprocs))
+		((new_ms+=((time_delta__seconds*one_ms_second)%numprocs>0)?1:0))
+
+		####################
+		# if we have reached a new high for this band, update the high
+		####################
+		changed="FALSE"
+		if [ ${new_ms} -gt ${hi_ms[$band]} ]
+		then
+			hi_ms[$band]=${new_ms}
+			gobs[$band]="OBSERVED"
+			changed=TRUE
+		else
+			####################
+			# if we have reached a new low for this band, update the low
+			####################
+			if [ ${new_ms} -lt ${lo_ms[$band]} ]
+			then
+				lo_ms[$band]=${new_ms}
+				gobs[$band]="OBSERVED"
+				changed=TRUE
+			fi
+		fi
+		####################
+		# if the table changed, then save it.
+		####################
+		if [ "${changed}" = "TRUE" ]
+		then
+			rm ${procrate_file}
+			for band in "${!lo_ms[@]}"
+			do
+				echo \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
+					>> ${PROCRATE_TMPFILE}
+			done
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+		fi
+	
+		####################
+		# Now we log the rate from this 
+		####################
+		$(logger "RATE" "${MD_UPPER}" "$$" "${mdbatchstring}" \
+"${mdtestnumber}" "${base}" "${srun_time}" "${numprocs}" \
+"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}"
 	fi
 done
 exit 0
