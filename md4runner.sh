@@ -131,10 +131,21 @@ srun_time=1
 runner_verbose=FALSE
 
 ####################
+# Added an -x command line option to specify an alternate partition
+# the names of the partitions come from the 'scontrol' command
+#
+# The default is to use the default partion so the setpartion
+# flag is set to FALSE.  If the user specifies a partition:
+# -x mi25
+# then mi25 will be provided to srun as the selected partition
+####################
+setpartition=FALSE
+
+####################
 # These are the getopt flags processed by mdrunner.  They are hopefully
 # adequately understandable from the (-h) flag.
 ####################
-runner_optionargs="hvt:d:f:p:N:o:"
+runner_optionargs="hvt:d:f:p:N:o:x:"
 
 while getopts ${runner_optionargs} name
 do
@@ -185,6 +196,10 @@ do
 			;;
 		v)	# Verbose mode
 			runner_verbose=TRUE
+			;;
+		x) # use to specify a partition other than the default
+			setpartition=TRUE
+			partitionname="${OPTART}"
 			;;
 		\?)	# Invalid
 			errecho "-e" ${LINENO} "invalid option: -$OPTARG"
@@ -289,6 +304,10 @@ echo $(func_releaselock)
 #
 # there is a moderate amount of parsing to figure out which is the 
 # default partition.  We are punting on that for now.
+#
+# The same parsing should be done to insure that the specified
+# partition in the -x option (if specified) exists, although there
+# is really no need to protect the user from themselves.
 ####################
 if [ $(which srun)>/dev/null ]
 then
@@ -417,9 +436,26 @@ do
 	PROCSTRING="$(printf "%03d" ${numprocs})"
 
 	####################
-	# Based on observed behavior on Corona, we will need approximately
-	# one minute for each 100 processes to complete.  Let's modify the
-	# user specified run time.
+	# Based on observed behavior, we will need to modify the amount
+	# of time specified to run a set of processes.  The following
+	# sections of code are designed to accomplish two things:
+	# 1) Specify a default amount of milliseconds per process for 
+	#    each group of 100 processes.  This default is used for
+	#    populating the table which suggests the number of milliseconds
+	#    per process based on groups or "bands" of 100 processes, E.G.
+	#    100 processes, 200 processes and so on.
+	# 2) The second is to specify the percentage amount by which to
+	#    increase the time that came from prior estimates (GUESS)
+	#    or observations (OBSERVED) in the event that the run command
+	#    fails (srun or mpirun) and cancels the launced processes for
+	#    exceeding their time limit.
+	#
+	# If there is no table (look at the name of the file in func.global2)
+	# then we push in hard coded defaults.  These are unlikely to be
+	# adequate defaults.  However, if the user hand edited the table,
+	# then those values will be used.
+	#
+	# More on the banding table in a moment.
 	####################
 	fileprefix=${MD_UPPER}.${fsbase}
 
@@ -462,6 +498,18 @@ do
 		exit 1
 	fi
 
+	####################
+	# We will build a small database to track the predicted vs. actual
+	# time used by each band of 100, 200, 300 processes, etc. in a
+	# small table.
+	# 
+	# Note that if the process rate table (procrate) does not exist
+	# then we will create a one row table for 100 processes using
+	# the information from the default table (either created above)
+	# or modified by the user.  Since we don't have data, this 
+	# is marked as a GUESS.
+	####################
+
 	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
 
 	if [ ! -r ${procrate_file} ]
@@ -485,6 +533,9 @@ do
 	done < ${procrate_file}
 	IFS=$OLDIFS
 
+	####################
+	# If we did not get any data out of the procrate file, quit
+	####################
 	if [ ${linesread} -eq 0 ]
 	then
 		errecho ${FUNCNAME} ${LINENO} \
@@ -492,6 +543,12 @@ do
 		exit 1
 	fi
 
+	####################
+	# since at this point we know how many processes the user
+	# wants to run, we will select a row (band) from the procrate
+	# table.  We simply roundup the number of processes to the next
+	# higher multiple of PROC_BAND
+	####################
 	band=$(func_introundup ${numprocs} ${PROC_BAND})
 
 	if [ ! ${hi_ms[${band}]+_} ]
@@ -560,7 +617,7 @@ x="${mdtestresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	mdtestname="${x}"
 
 	####################
-	# Cleanup from prior runs
+	# Cleanup from prior runs (Specific recovery to mdtest
 	####################
 	dirhead=${filesystem}/$USER/md.seq
 	if [ -d ${dirhead} ]
@@ -585,11 +642,22 @@ x="${mdtestresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	fi
 
 	####################
+	# Check to see if we want to run in a different partion.
+	####################
+	if [ "${setpartition}" = "TRUE" ]
+	then
+		partitionopt="-p ${partitionname}"
+	else
+		partitionopt=""
+	fi
+
+	####################
 	# echo out the name of the srun command that will be issued
 	####################
- 	echo "srun -n ${numprocs} -N ${srun_NODES} -t ${srun_time}\
-${MD_EXEC} ${mdopts} -d ${filesystem}/$USER/md.seq | \
-tee -a ${mdtestname}" | tee -a ${mdtestname}
+	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} -N ${srun_NODES} \
+-t ${srun_time} \
+${MD_EXEC} ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
+tee -a ${mdtestname}" | tee -a ${IOR_TESTLOG}
 	srun_status=$?
 
 	####################
@@ -609,14 +677,20 @@ tee -a ${mdtestname}" | tee -a ${mdtestname}
 		####################
 		# Run the benchmark test
 		####################
-  	srun -n "${numprocs}" -N "${srun_NODES}" -t "${srun_time}" \
-"${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq | \
+		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
+-t "${srun_time}" \
+"${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
 tee -a "${mdtestname}"
-		srun_status=$?
+		if [ grep "${SRUNKILLSTRING}" ${mdtestname} ]
+		then
+			srun_status=1
+		else
+			srun_status=0
+		fi
 
 		####################
-		# We kept the completion status.  There could be many reasons
-		# why the benchmark failed, but the most likely culprit is
+		# We grep for the error message that srun was killed as a 
+		# primary indicator that the benchmark is
 		# exceeding the requested time. 
 		####################
 		if [ $srun_status -ne 0 ]

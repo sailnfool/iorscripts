@@ -28,6 +28,7 @@ then
 	export DEFAULT_MS=100
 	export FAIL_PERCENT=20
 	export LOCKERRS=${IOR_ETCDIR}/lockerrs
+	export SRUNKILLSTRING="srun: Job step aborted: Waiting up to"
 
 
 	####################
