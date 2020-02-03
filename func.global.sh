@@ -44,10 +44,10 @@ then
 	####################
 
 	export one_ms_second=1000
-	declare -A -g bands 
 	declare -A -g lo_ms
 	declare -A -g hi_ms
 	declare -A -g gobs
+	declare -A -g obhi_ms
 
 	func_getlock()
 	{
