@@ -1,7 +1,7 @@
 #!/bin/bash
-if [ -z "${__funcglobal2}" ]
+if [ -z "${__funcglobal}" ]
 then
-	export __funcglobal2=1
+	export __funcglobal=1
 	
 	source func.errecho
 
@@ -78,7 +78,7 @@ then
 	export -f func_releaselock
 
 	mkdir -p ${IOR_TESTDIR} ${IOR_ETCDIR}
-	echo $(func_getlock) >> ${IOR_ETCDIR}/lockerrs
+	echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 	if [ ! -r ${IOR_TESTNUMBERFILE} ]
 	then
 		echo "0" > ${IOR_TESTNUMBERFILE}
@@ -92,4 +92,4 @@ then
 		echo "0" > ${MD_TESTNUMBERFILE}
 	fi
 	echo $(func_releaselock)
-fi # if [ -z "${__funcglobal2}" ]
+fi # if [ -z "${__funcglobal}" ]
