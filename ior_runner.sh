@@ -113,7 +113,7 @@ iorfilesystem=/p/lustre3
 # Standard options we don't override
 ####################
 ioropts=" -b 16m -s 16 -F -C -e -i 5 -t 2m"
-# errecho ${FUNCNAME} ${LINENO} "ioropts=${ioropts}" >&2
+# errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
 
 ####################
 # Additional ior options that can come in with -o flag
@@ -126,7 +126,7 @@ ioraddopts=""
 # and we have to add the "-M" option to the ior_options
 ####################
 mempercent=0
-memlimit=FALSE
+memlimit="FALSE"
 
 ####################
 # The default percentage of nodes as a percentage of processes.
@@ -139,7 +139,7 @@ memlimit=FALSE
 ####################
 # This flag is set if we are only performing testing of the script
 ####################
-runner_testing=FALSE
+runner_testing="FALSE"
 
 ####################
 # This is the number of nodes that we will ask for from srun
@@ -151,7 +151,7 @@ srun_NODES="1"
 # this becomes true if the user selects a hard coded number of nodes
 # in the script command line "-N"
 ####################
-setnodes=FALSE
+setnodes="FALSE"
 
 ####################
 # The default is to ask for 1 minute of run time from srun
@@ -161,7 +161,7 @@ srun_time=1
 ####################
 # Turn on runner verbose mode to give more complete help
 ####################
-runner_verbose=FALSE
+runner_verbose="FALSE"
 
 ####################
 # This is the first experimental directive option flag.  If we set
@@ -169,12 +169,12 @@ runner_verbose=FALSE
 # have the fileFormat output in CSV node instead of the verbose
 # human readable mode.
 ####################
-wantCSV=FALSE
+wantCSV="FALSE"
 
 ####################
 # Default is to NOT use ODIRECT mode
 ####################
-wantODIRECT=FALSE
+wantODIRECT="FALSE"
 
 ####################
 # Added an -x command line option to specify an alternate partition
@@ -185,19 +185,19 @@ wantODIRECT=FALSE
 # -x mi25
 # then mi25 will be provided to srun as the selected partition
 ####################
-setpartition=FALSE
+setpartition="FALSE"
 
 ####################
 # These are the getopt flags processed by iorunner.  They are hopefully
 # adequately understandable from the (-h) flag.
 ####################
-runner_optionargs="hvct:d:f:m:o:p:N:x:"
+runner_optionargs="hvcDt:d:f:m:o:p:N:x:"
 
 while getopts ${runner_optionargs} name
 do
 	case $name in
 		c)
-			wantCSV=TRUE
+			wantCSV="TRUE"
 			;;
 		d)
 			FUNC_DEBUG=${OPTARG} # see func.errecho
@@ -208,11 +208,11 @@ do
 			fi
 			if [ ${runner_debug} -ge 6 ]
 			then
-				runner_testing=TRUE
+				runner_testing="TRUE"
 			fi
 			;;
 		D)
-			wantODIRECT=TRUE
+			wantODIRECT="TRUE"
 			;;
 		f)
 			iorfilesystem=${OPTARG}
@@ -227,11 +227,11 @@ do
 			;;
 		m)
 			mempercent=${OPTARG}
-			memlimit=TRUE
+			memlimit="TRUE"
 			;;
 		N)
 			srun_NODES=${OPTARG}
-			setnodes=TRUE
+			setnodes="TRUE"
 			;;
 		o)
 			####################
@@ -246,15 +246,15 @@ do
 			srun_time=${OPTARG}
 			;;
 		v)
-			runner_verbose=TRUE
+			runner_verbose="TRUE"
 			;;
 		x) #use to specify a partition other than the default
-			setpartition=TRUE
+			setpartition="TRUE"
 			partitionname="${OPTARG}"
 			;;
 		\?)
-			errecho "-e" ${FUNCNAME} ${LINENO} "invalid option: -$OPTARG" >&2
-			errecho "-e" ${FUNCNAME} ${LINENO} ${USAGE} >&2
+			errecho "-e" ${0##*/} ${LINENO} "invalid option: -$OPTARG" >&2
+			errecho "-e" ${0##*/} ${LINENO} ${USAGE} >&2
 			exit 1
 			;;
 	esac
@@ -269,11 +269,11 @@ shift $((OPTIND-1))
 ####################
 if [ $# -lt ${runner_NUMARGS} ]
 then
-	errecho "-e" ${FUNCNAME} ${LINENO} \
+	errecho "-e" ${0##*/} ${LINENO} \
     "You must provide at least one argument that describes\r\n
 the number of processes you want to run for testing\r\n"
-	errecho "-e" ${FUNCNAME} ${LINENO} ${USAGE}
-	insufficient ${FUNCNAME} ${LINENO} ${runner_NUMARGS} $@
+	errecho "-e" ${0##*/} ${LINENO} ${USAGE}
+	insufficient ${0##*/} ${LINENO} ${runner_NUMARGS} $@
 	exit 1
 fi
 
@@ -372,11 +372,11 @@ then
 	MaxNodes=$(scontrol show partition | \
 		sed -n -e '/MaxNodes/s/^[ ]*MaxNodes=\([^ 	]*\).*/\1/p' | tail -1)
 else
-	errecho ${FUNCNAME} ${LINENO} \
+	errecho ${0##*/} ${LINENO} \
     "Could not find srun on this machine" >&2
-	errecho ${FUNCNAME} ${LINENO} \
+	errecho ${0##*/} ${LINENO} \
     "Are you sure you are on the right machine?" >&2
-	errecho ${FUNCNAME} ${LINENO} \
+	errecho ${0##*/} ${LINENO} \
     "If you need to run mpirun. fix the code here" >&2
 	exit 1
 fi
@@ -391,9 +391,9 @@ fsbase=${iorfilesystem##*/}
 ####################
 if [ ! -d ${iorfilesystem} ]
 then
-	errecho ${FUNCNAME} ${LINENO} \
+	errecho ${0##*/} ${LINENO} \
     "Could not detect filesystem (-f) = ${iorfilesystem}" >&2
-	errecho -e ${FUNCNAME} ${LINENO} ${USAGE} >&2
+	errecho -e ${0##*/} ${LINENO} ${USAGE} >&2
 	exit 1
 fi
 echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
@@ -408,7 +408,7 @@ if [ ${mempercent} -gt 0 ]
 then
 	ioropts="${ioropts} -M ${mempercent} "
 fi
-#errecho ${FUNCNAME} ${LINENO} "ioropts=${ioropts}" >&2
+#errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
 
 ####################
 # If any additional parameters were passed in on the command line
@@ -419,7 +419,7 @@ then
 	ioropts="${ioropts} --posix.odirect"
 fi
 ioropts="${ioropts} ${ioraddopts}"
-#errecho ${FUNCNAME} ${LINENO} "ioropts=${ioropts}" >&2
+#errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
 
 ####################
 # If the user wants CSV output, then create an IOR directive file.
@@ -439,7 +439,7 @@ then
 	echo "summaryFormat=CSV" > ${iordirectivefile}
 	ioropts="${ioropts} -f ${iordirectivefile}"
 fi
-#errecho ${FUNCNAME} ${LINENO} "ioropts=${ioropts}" >&2
+#errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
 
 ####################
 # Build the list of the processes that will be used
@@ -450,7 +450,7 @@ for i in $*
 do
 	testcounts="${testcounts} $i"
 done
-#errecho ${FUNCNAME} ${LINENO} "testcounts=${testcounts}" >&2
+#errecho ${0##*/} ${LINENO} "testcounts=${testcounts}" >&2
 ####################
 # for each of the counts of the number of processes that will be
 # used for testing, generate an 'srun' or 'mpirun' to run the ior
@@ -459,7 +459,7 @@ done
 ####################
 for numprocs in ${testcounts}
 do
-	#errecho ${FUNCNAME} ${LINENO} "numprocs=${numprocs}" >&2
+	#errecho ${0##*/} ${LINENO} "numprocs=${numprocs}" >&2
 	if [ ${numprocs} -eq 0 ]
 	then
 		####################
@@ -477,11 +477,11 @@ do
 	####################
 	((MinNodes=numprocs / MinNodesDivisor))
 	((MinNodes+=(((numprocs%MinNodesDivisor>0)?1:0))))
-#	errecho ${FUNCNAME} ${LINENO} \
+#	errecho ${0##*/} ${LINENO} \
 #   "numprocs = ${numprocs}" >&2
-#	errecho ${FUNCNAME} ${LINENO} \
+#	errecho ${0##*/} ${LINENO} \
 #   "MinNodesDivisor = ${MinNodesDivisor}" >&2
-#	errecho ${FUNCNAME} ${LINENO} \
+#	errecho ${0##*/} ${LINENO} \
 #   "MinNodes = ${MinNodes}" >&2
 
 	####################
@@ -493,13 +493,13 @@ do
 	then
 		srun_NODES=${MinNodes}
 	fi
-	#errecho ${FUNCNAME} ${LINENO} \
+	#errecho ${0##*/} ${LINENO} \
   #  "srun_NODES=${srun_NODES}" >&2
-	#errecho ${FUNCNAME} ${LINENO} \
+	#errecho ${0##*/} ${LINENO} \
   #  "numprocs=${numprocs}" >&2
-	#errecho ${FUNCNAME} ${LINENO} \
+	#errecho ${0##*/} ${LINENO} \
   #  "MinNodesDivisor=${MinNodesDivisor}" >&2
-	#errecho ${FUNCNAME} ${LINENO} \
+	#errecho ${0##*/} ${LINENO} \
   #  "MinNodes=${MinNodes}" >&2
 
 	####################
@@ -514,8 +514,8 @@ do
 	then
 		srun_NODES=1
 	fi
-	#	errecho ${FUNCNAME} ${LINENO} "srun_NODES=${srun_NODES}" >&2
-	#	errecho ${FUNCNAME} ${LINENO} "MaxNodes=${MaxNodes}" >&2
+	#	errecho ${0##*/} ${LINENO} "srun_NODES=${srun_NODES}" >&2
+	#	errecho ${0##*/} ${LINENO} "MaxNodes=${MaxNodes}" >&2
 
 	####################
 	# Check to see if the user requested number of Nodes is greater than
@@ -523,7 +523,7 @@ do
 	####################
 	if [ ${srun_NODES} -gt ${MaxNodes} ]
 	then
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
 			"Exceeded Maximum available nodes,\r\n
 Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		exit 1
@@ -575,10 +575,10 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 
 	if [ ! -r ${procdefault_file} ]
 	then
-		errecho ${FUNCNAME} ${LINENO} "File Not Found ${procdefault_file}"
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} "File Not Found ${procdefault_file}"
+		errecho ${0##*/} ${LINENO} \
 			"Need Default Band (e.g. 100), default MS per Process and..."
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
 			"the amount by which to increase guess times after failures"
 		####################
 		# Instead of exiting we could emit a default file here
@@ -602,7 +602,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 
 	if [ ${linesread} -eq 0 ]
 	then
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
 			"Could not read ${procdefault_file}"
 		exit 1
 	fi
@@ -619,24 +619,27 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	# is marked as a GUESS.
 	####################
 	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
+	changed_procrate_file="FALSE"
 
 	if [ ! -r ${procrate_file} ]
 	then
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
 			"File Not Found ${procrate_file}"
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
 			"Creating a one-line default table"
-		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS" > ${procrate_file}
+		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" > ${procrate_file}
+		changed_procrate_file="FALSE"
 	fi
 	linesread=0
 	OLDIFS=$IFS
 	IFS="|"
-	while read -r band low high gob
+	while read -r band low high gob obhigh
 	do
 		((++linesread))
 		lo_ms[$band]=$low
 		hi_ms[$band]=$high
 		gobs[$band]=$gob
+		obhi_ms[$band]=$obhigh
 	done < ${procrate_file}
 	IFS=$OLDIFS
 		
@@ -645,9 +648,11 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	####################
 	if [ ${linesread} -eq 0 ]
 	then
-		errecho ${FUNCNAME} ${LINENO} 
+		errecho ${0##*/} ${LINENO} 
 			"Could not read ${procrate_file}"
 		exit 1
+	else
+		changed_procrate_file="TRUE"
 	fi
 
 	####################
@@ -667,9 +672,11 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		lo_ms[${band}]=${DEFAULT_MS}
 		hi_ms[${band}]=${DEFAULT_MS}
 		gobs[${band}]="GUESS"
+		obhi_ms[${band}]=0
+		changed_procrate_file="TRUE"
 	fi
 
-	errecho ${FUNCNAME} ${LINENO} "hi_ms[$band]=${hi_ms[$band]}"
+	errecho ${0##*/} ${LINENO} "hi_ms[$band]=${hi_ms[$band]}"
 
 	((milliseconds=hi_ms[$band]*numprocs))
 	((srun_time_seconds=milliseconds/one_ms_second))
@@ -681,13 +688,13 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	####################
 	if [ ${srun_time_seconds} -le 0 ]
 	then
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
       "Invalid run time: srun_time_seconds=${srun_time_seconds}" >&2
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
       "hi_ms[$band]=${hi_ms[$band]}" >&2
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
       "numprocs=${numprocs}" >&2
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
       "milliseconds=${milliseconds}" >&2
 		exit 1
 	fi
@@ -699,7 +706,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	((dayseconds=24*60*60))
 	if [ "${srun_time_seconds}" -ge ${dayseconds} ]
 	then
-		errecho ${FUNCNAME} ${LINENO} \
+		errecho ${0##*/} ${LINENO} \
       "Projected run time exceeds 24 hours, quitting" >&2
 		exit 1
 	fi
@@ -708,7 +715,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	# Note that this converts the number of seconds into HMS values.
 	####################
 	new_time=$(hmsout "${srun_time_seconds}" "seconds")
-	errecho ${FUNCNAME} ${LINENO} \
+	errecho ${0##*/} ${LINENO} \
     "Adjusting time request to ${new_time}" >&2
 	srun_time=${new_time}
 
@@ -742,8 +749,8 @@ x="${iortestresultdir}/ior.${fsbase}_${testnamesuffix}.txt"
 	# echo out the name of the srun command that will be issued
 	# Ideally this should be added to func.logger to avoid later problems
 	####################
-	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} -N ${srun_NODES} \
--t ${srun_time} \
+	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} \
+-N ${srun_NODES} -t ${srun_time} \
 ${IOR_EXEC} ${ioropts} -o ${iorfilesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}" | tee -a ${IOR_TESTLOG}
 
@@ -764,8 +771,9 @@ tee -a ${iortestname}" | tee -a ${IOR_TESTLOG}
 		####################
 		# Run the benchmark test
 		####################
-  	srun ${partitionopt} -n ${numprocs} -N ${srun_NODES} -t ${srun_time} ${IOR_EXEC} \
-${ioropts} -o ${iorfilesystem}/$USER/ior.seq 2>&1 | \
+  	srun ${partitionopt} -n ${numprocs} -N ${srun_NODES} \
+-t "${srun_time}" \
+"${IOR_EXEC}" ${ioropts} -o ${iorfilesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}
 		if [ $(grep "${SRUNKILLSTRING}" ${iortestname} | wc -l ) -eq 1 ]
 		then
@@ -790,7 +798,7 @@ tee -a ${iortestname}
 			completion=FAIL
 			oldtime=${hi_ms[$band]}
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
-			errecho ${FUNCNAME} ${LINENO} \
+			errecho ${0##*/} ${LINENO} \
 				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 
 			####################
@@ -814,12 +822,20 @@ tee -a ${iortestname}
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
-				echo \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
+				echo -n \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|" \
+					>> ${PROCRATE_TMPFILE}
+				if [ -z "${obhi_ms[$band]}" ]
+				then
+					obhi_ms[$band]=0
+				fi
+				echo -n \
+			"${gobs[${band}]}|${obhi_ms[${band}]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
 			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
 			rm -f ${PROCRATE_TMPFILE}
+			changed_procrate_file="FALSE"
 		else
 
 			####################
@@ -864,44 +880,69 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		####################
 		# if we have reached a new high for this band, update the high
 		####################
-		changed="FALSE"
+		changed_procrate_file="FALSE"
+		if [ ! -z "${obhi_ms[$band]}}" ]
+		then
+			if [ ${new_ms} -gt ${obhi_ms[$band]} ]
+			then
+				obhi_ms[$band]=${new_ms}
+				changed_procrate_file="TRUE"
+			fi
+		else
+			obhi_ms[$band]=${new_ms}
+			changed_procrate_file="TRUE"
+		fi
 		if [ ${new_ms} -gt ${hi_ms[$band]} ]
 		then
 			hi_ms[$band]=${new_ms}
 			gobs[$band]="OBSERVED"
-			changed=TRUE
+			changed_procrate_file="TRUE"
 		else
 			####################
 			# if we have reached a new low for this band, update the low
+			# a new_ms of zero must be an artifact of a failure.  Don't
+			# allow it to update the table entry
 			####################
-			if [ ${new_ms} -lt ${lo_ms[$band]} ]
+			if [ ${new_ms} -ne 0 ]
 			then
-				lo_ms[$band]=${new_ms}
-				gobs[$band]="OBSERVED"
-				changed=TRUE
+				if [ ${new_ms} -lt ${lo_ms[$band]} ]
+				then
+					lo_ms[$band]=${new_ms}
+					gobs[$band]="OBSERVED"
+					changed_procrate_file="TRUE"
+				fi
 			fi
 		fi
 		####################
 		# if the table changed, then save it.
 		####################
-		if [ "${changed}" = "TRUE" ]
+		if [ "${changed_procrate_file}" = "TRUE" ]
 		then
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
+				echo -n \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|" \
+					>> ${PROCRATE_TMPFILE}
+				if [ -z "${obhi_ms[$band]}" ]
+				then
+					obhi_ms[$band]=0
+				fi
 				echo \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}" \
+			"${gobs[${band}]}|${obhi_ms[$band]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
 			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+			rm -f ${PROCRATE_TMPFILE}
+			changed_procrate_file="FALSE"
 		fi
 		
 		####################
 		# Now we log the rate from this run
 		####################
 		$(logger "RATE" "${IOR_UPPER}" "$$" "${batchstring}" \
-			"${testnumber}" "${base}" "${srun_time}" "${numprocs}" \
-			"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" )
+"${iortestnumber}" "${base}" "${srun_time}" "${numprocs}" \
+"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" )
 	fi
 done
 exit 0
