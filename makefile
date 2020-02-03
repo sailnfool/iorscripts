@@ -6,10 +6,10 @@
 
 INSTALL = ior.ex4 \
 					md.ex2 \
-					ior3runner dobunchior3 \
-					md4runner dobunchmd3 \
+					ior_runner dobatch_ior \
+					md_runner dobatch_md \
 					func.logger \
-					func.global2
+					func.global
 
 .PHONY: all clean uninstall
 all: $(INSTALL)
