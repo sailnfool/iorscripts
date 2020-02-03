@@ -88,12 +88,16 @@ do
 done
 for filesystem in "/p/lustre3" "/p/vast1"
 do
-	echo "ior3runner -f ${filesystem} -p 50 -o "-Y" ${proclist}"
-	ior3runner -f ${filesystem} -p 50  -o "-Y" ${proclist}
-	echo "ior3runner -f ${filesystem} -p 10 -o "-Y" ${proclist}"
-	ior3runner -f ${filesystem} -p 10  -o "-Y" ${proclist}
-	echo "ior3runner -f ${filesystem} -p 50  ${proclist}"
-	ior3runner -f ${filesystem} -p 50  ${proclist}
-	echo "ior3runner -f ${filesystem} -p 10 ${proclist}"
-	ior3runner -f ${filesystem} -p 10  ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 50 -o "-Y" ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 50  -o "-Y" ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 10 -o "-Y" ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 10  -o "-Y" ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 50  ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 50  ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 10 ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 10  ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -D -p 10 ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -D -p 10  ${proclist}
 done
