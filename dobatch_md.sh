@@ -88,8 +88,8 @@ do
 done
 for filesystem in "/p/lustre3" "/p/vast1"
 do
-	echo "md4runner -f ${filesystem} -p 50 ${proclist}"
-	md4runner -f ${filesystem} -p 50  ${proclist}
-	echo "md4runner -f ${filesystem} -p 10 ${proclist}"
-	md4runner -f ${filesystem} -p 10  ${proclist}
+	echo "md_runner -x mi25 -f ${filesystem} -p 50 ${proclist}"
+	md_runner -x mi25 -f ${filesystem} -p 50  ${proclist}
+	echo "md_runner -x mi25 -f ${filesystem} -p 10 ${proclist}"
+	md_runner -x mi25 -f ${filesystem} -p 10  ${proclist}
 done
