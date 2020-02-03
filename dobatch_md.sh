@@ -64,7 +64,7 @@ echo ${iorbatchnumber} > ${iorbatchnumberfile}
 # retrieve the current test number and stuff it in a test string for
 # identifying the results directory
 ####################
-mdbatchstring="${USER}-BATCH-$(printf '%04d' ${iorbatchnumber})"
+mdbatchstring="${USER}-BATCH-MD-$(printf '%04d' ${iorbatchnumber})"
 
 ####################
 # Now we can release the lock and the lock info
