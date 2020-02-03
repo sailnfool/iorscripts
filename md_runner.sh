@@ -43,14 +43,14 @@
 #     application
 #
 #######################################################################
-source func.global2
+source func.global
 source func.errecho
 source func.insufficient
 source func.logger
 source func.arithmetic
 source func.hmsout
 
-USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> <#procs> ...\r\n
+USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> -x <partition> <#procs> ...\r\n
 \t\trun the mdtest benchmark with default options\r\n
 \t-h\tPrint this message\r\n
 \t-v\tSet verbose mode. If set before -h you get verbose help\r\n
@@ -59,7 +59,9 @@ USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> <#procs> ...\r\n
 \t-p\t#\tthe minimum percentage of nodes acroos which the\r\n
 \t\t\tload will be distributed\r\n
 \t-N\t#\tthe number of nodes that you want to run on.\r\n
-\t-t\t#\tthe number of minutes of CPU time you want to request\r\n"
+\t-t\t#\tthe number of minutes of CPU time you want to request\r\n
+\t-x\t<partition>\tthe name of a partition (subset of nodes on\t\n
+\t\t\tan MPI machine) (srun/sbatch dependent)"
 
 VERBOSE_USAGE="${0##*/} Debugging, time information and default information\r\n
 \t-d\t8\tTurns on the bash \"set -x\" flag.\r\n
@@ -199,7 +201,7 @@ do
 			;;
 		x) # use to specify a partition other than the default
 			setpartition=TRUE
-			partitionname="${OPTART}"
+			partitionname="${OPTARG}"
 			;;
 		\?)	# Invalid
 			errecho "-e" ${LINENO} "invalid option: -$OPTARG"
@@ -237,7 +239,7 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the test
 # number
 ####################
-echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
 # if it does not exist, initialize it with a zero value
@@ -288,7 +290,7 @@ mkdir -p ${mdtestresultdir}
 ####################
 iorbuilddate=$(sourcedate -t ${IOR_INSTALLDIR})
 
-echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 echo "mdtest Build Date information" >> ${MD_METADATAFILE}
 echo ${iorbuilddate} >> ${MD_METADATAFILE}
 echo $(func_releaselock)
@@ -338,9 +340,9 @@ then
 	errecho -e ${FUNCNAME} ${LINENO} ${USAGE}
 	exit 1
 fi
-echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 mount | grep ${fsbase} >> ${MD_METADATAFILE}
-echo $(func_releaselock) >> ${IOR_ETCDIR}/lockerrs
+echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
 # Standard options we don't override
@@ -450,7 +452,7 @@ do
 	#    fails (srun or mpirun) and cancels the launced processes for
 	#    exceeding their time limit.
 	#
-	# If there is no table (look at the name of the file in func.global2)
+	# If there is no table (look at the name of the file in func.global)
 	# then we push in hard coded defaults.  These are unlikely to be
 	# adequate defaults.  However, if the user hand edited the table,
 	# then those values will be used.
@@ -474,9 +476,9 @@ do
 		####################
 		# Instead of exiting we could emit a default file here
 		####################
-		echo $(func_getlock) >> $IOR_ETCDIR/lockerrs
+		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 		echo "100|300|20" > ${procdefault_file}
-		echo $(func_releaselock) >> ${IOR_ETCDIR}/lockerrs
+		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 		#exit 1
 	fi
 	linesread=0
@@ -681,7 +683,7 @@ tee -a ${mdtestname}" | tee -a ${IOR_TESTLOG}
 -t "${srun_time}" \
 "${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
 tee -a "${mdtestname}"
-		if [ grep "${SRUNKILLSTRING}" ${mdtestname} ]
+		if [ $(grep "${SRUNKILLSTRING}" ${mdtestname} | wc -l ) -eq 1 ]
 		then
 			srun_status=1
 		else
@@ -704,7 +706,7 @@ tee -a "${mdtestname}"
 			completion=FAIL
 			oldtime=${hi_ms[$band]}
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
-			errech ${FUNCNAME} ${LINENO} \
+			errecho ${FUNCNAME} ${LINENO} \
 				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 
 			####################
