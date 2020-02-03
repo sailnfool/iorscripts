@@ -46,14 +46,14 @@
 # iorunner $(linear -low 10 -increment 10 -high $(nproc --all))
 #
 #######################################################################
-source func.global2
+source func.global
 source func.errecho
 source func.insufficient
 source func.logger
 source func.arithmetic
 source func.hmsout
 
-USAGE="${0##*/} [-hdvc] [-f <filesystem>] [-m #] [-N #] -t <minutes> <#procs> ...\r\n
+USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] -t <minutes> -x <partition> <#procs> ...\r\n
 \t\trun the ior benchmark with default options provide a list\r\n
 \t\tof the number of processes.  See -p to control the # of nodes\r\n
 \t\trelative to the number of processes.\r\n
@@ -61,6 +61,7 @@ USAGE="${0##*/} [-hdvc] [-f <filesystem>] [-m #] [-N #] -t <minutes> <#procs> ..
 \t-v\tSet verbose mode. If set before -h you get verbose help\r\n
 \t-c\tSave output in CSV format\r\n
 \t-d\t#\tturn on diagnostics level #\r\n
+\t-D\t#\tTurn on --posix.ODIRECT
 \t-f\t<filesystem>\trun ior against the named filesystem/\$USER\r\n
 \t-m\t#\tthe percentage of free memory to pre-allocate to avoid\r\n
 \t\t\tread cache problems\r\n
@@ -68,8 +69,9 @@ USAGE="${0##*/} [-hdvc] [-f <filesystem>] [-m #] [-N #] -t <minutes> <#procs> ..
 \t-p\t#\tthe minimum percentage of nodes acroos which the\r\n
 \t\t\tload will be distributed\r\n
 \t-N\t#\tthe number of nodes that you want to run on.\r\n
-\t-t\t#\tthe number of minutes of CPU time you want to request\r\n"
-
+\t-t\t#\tthe number of minutes of CPU time you want to request\r\n
+\t-x\t<partition>\tthe name of a partition (subset of nodes on\r\n
+\t\t\tan MPI machine) (srun/sbatch dependent)"
 VERBOSE_USAGE="${0##*/} Debugging, time information and default information\r\n
 \t-d\t8\tTurns on the bash \"set -x\" flag.\r\n
 \t-d\t6\tRuns this script in testing mode to show what would run\r\n
@@ -170,6 +172,11 @@ runner_verbose=FALSE
 wantCSV=FALSE
 
 ####################
+# Default is to NOT use ODIRECT mode
+####################
+wantODIRECT=FALSE
+
+####################
 # Added an -x command line option to specify an alternate partition
 # the names of the partitions come from the 'scontrol' command
 # 
@@ -203,6 +210,9 @@ do
 			then
 				runner_testing=TRUE
 			fi
+			;;
+		D)
+			wantODIRECT=TRUE
 			;;
 		f)
 			iorfilesystem=${OPTARG}
@@ -282,7 +292,7 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the
 # test number
 ####################
-echo $(func_getlock) >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
 iortestnumber=$(cat ${IOR_TESTNUMBERFILE})
 
@@ -332,7 +342,7 @@ iormetadatafile=${IOR_ETCDIR}/${IOR_UPPER}.VERSION.info.txt
 iorbuilddate=$(sourcedate -t ${iorinstalldir})
 iorversion=$(strings ${IOR_EXEC} | egrep '^IOR-')
 
-echo $(func_getlock) >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
 echo "IOR Version info" > ${iormetadatafile}
 echo ${iorversion} >> ${iormetadatafile}
@@ -386,9 +396,9 @@ then
 	errecho -e ${FUNCNAME} ${LINENO} ${USAGE} >&2
 	exit 1
 fi
-echo $(func_getlock) >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 mount | grep ${fsbase} >> ${IOR_METADATAFILE}
-echo $(func_releaselock) >> ${LOCKERRS}
+echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 ####################
 # This override for Memory is to minimize the effects of caching
 # written data to be read back.  This should really only appear on
@@ -404,6 +414,10 @@ fi
 # If any additional parameters were passed in on the command line
 # to be sent straight to ior, add them to the ioropts string here
 ####################
+if [ "${wantODIRECT}" = "TRUE" ]
+then
+	ioropts="${ioropts} --posix.odirect"
+fi
 ioropts="${ioropts} ${ioraddopts}"
 #errecho ${FUNCNAME} ${LINENO} "ioropts=${ioropts}" >&2
 
@@ -547,7 +561,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	#    fails (srun or mpirun) and cancels the launced processes for
 	#    exceeding their time limit.
 	#
-	# If there is no table (look at the name of the file in func.global2)
+	# If there is no table (look at the name of the file in func.global)
 	# then we push in hard coded defaults.  These are unlikely to be
 	# adequate defaults.  However, if the user hand edited the table,
 	# then those values will be used.
@@ -569,9 +583,9 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		####################
 		# Instead of exiting we could emit a default file here
 		####################
-		echo $(func_getlock) >> ${LOCKERRS}
+		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 		echo "100|300|20" > ${procdefault_file}
-		echo $(func_releaselock) >> ${LOCKERRS}
+		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 		#exit 1
 	fi
 	linesread=0
@@ -753,7 +767,7 @@ tee -a ${iortestname}" | tee -a ${IOR_TESTLOG}
   	srun ${partitionopt} -n ${numprocs} -N ${srun_NODES} -t ${srun_time} ${IOR_EXEC} \
 ${ioropts} -o ${iorfilesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}
-		if [ grep "${SRUNKILLSTRING}" ${iortestname} ]
+		if [ $(grep "${SRUNKILLSTRING}" ${iortestname} | wc -l ) -eq 1 ]
 		then
 			srun_status=1
 		else
