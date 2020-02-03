@@ -64,7 +64,7 @@ echo ${iorbatchnumber} > ${iorbatchnumberfile}
 # retrieve the current test number and stuff it in a test string for
 # identifying the results directory
 ####################
-iorbatchstring="${USER}-BATCH-$(printf '%04d' ${iorbatchnumber})"
+iorbatchstring="${USER}-BATCH-IOR-$(printf '%04d' ${iorbatchnumber})"
 
 ####################
 # Now we can release the lock and the lock info
@@ -88,6 +88,10 @@ do
 done
 for filesystem in "/p/lustre3" "/p/vast1"
 do
+	echo "ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -D -p 10 ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -D -p 10  ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -p 50 -o "-Y" ${proclist}"
 	ior_runner -x mi25 -f ${filesystem} -p 50  -o "-Y" ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -p 10 -o "-Y" ${proclist}"
@@ -96,8 +100,4 @@ do
 	ior_runner -x mi25 -f ${filesystem} -p 50  ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -p 10 ${proclist}"
 	ior_runner -x mi25 -f ${filesystem} -p 10  ${proclist}
-	echo "ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}"
-	ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}
-	echo "ior_runner -x mi25 -f ${filesystem} -D -p 10 ${proclist}"
-	ior_runner -x mi25 -f ${filesystem} -D -p 10  ${proclist}
 done
