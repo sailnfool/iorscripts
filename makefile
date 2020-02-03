@@ -4,8 +4,8 @@
 	cp $? `basename $? .sh`
 	chmod +x `basename $? .sh`
 
-INSTALL = ior.ex4 \
-					md.ex2 \
+INSTALL = extract_ior \
+					extract_md \
 					ior_runner dobatch_ior \
 					md_runner dobatch_md \
 					func.logger \
