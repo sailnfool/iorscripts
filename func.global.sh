@@ -1,7 +1,7 @@
 #!/bin/bash
-if [ -z "${__funcglobal}" ]
+if [ -z "${__funcglobal2}" ]
 then
-	export __funcglobal=1
+	export __funcglobal2=1
 	
 	source func.errecho
 
@@ -18,11 +18,18 @@ then
 	export IOR_ETCDIR=${IOR_TESTDIR}/etc
 	export IOR_LOCKFILE=${IOR_ETCDIR}/lock
 	export PROCRATE_SUFFIX=procrate.txt
-	export PROCRATEMIN_SUFFIX=default.txt
-	export PROCBAND_SUFFIX=procband.txt
+	export PROCDEFAULT_SUFFIX=default.txt
 	export TESTLOG_SUFFIX=testlog.txt
 	export IOR_TESTLOG=${IOR_ETCDIR}/${IOR_UPPER}.${TESTLOG_SUFFIX}
 	export MD_TESTLOG=${IOR_ETCDIR}/${MD_UPPER}.${TESTLOG_SUFFIX}
+	export PROCRATE_TMPFILE=${IOR_ETCDIR}/tmp.$$.${PROCRATE_SUFFIX}
+
+	export PROC_BAND=100
+	export DEFAULT_MS=100
+	export FAIL_PERCENT=20
+	export LOCKERRS=${IOR_ETCDIR}/lockerrs
+	export SRUNKILLSTRING="srun: Job step aborted: Waiting up to"
+
 
 	####################
 	# updating the following requires locking
@@ -37,6 +44,10 @@ then
 	####################
 
 	export one_ms_second=1000
+	declare -A -g bands 
+	declare -A -g lo_ms
+	declare -A -g hi_ms
+	declare -A -g gobs
 
 	func_getlock()
 	{
@@ -67,7 +78,7 @@ then
 	export -f func_releaselock
 
 	mkdir -p ${IOR_TESTDIR} ${IOR_ETCDIR}
-	echo $(func_getlock)
+	echo $(func_getlock) >> ${IOR_ETCDIR}/lockerrs
 	if [ ! -r ${IOR_TESTNUMBERFILE} ]
 	then
 		echo "0" > ${IOR_TESTNUMBERFILE}
@@ -81,4 +92,4 @@ then
 		echo "0" > ${MD_TESTNUMBERFILE}
 	fi
 	echo $(func_releaselock)
-fi
+fi # if [ -z "${__funcglobal2}" ]
