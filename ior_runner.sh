@@ -71,26 +71,89 @@ USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] -t <minutes> -x <partit
 \t-N\t#\tthe number of nodes that you want to run on.\r\n
 \t-t\t#\tthe number of minutes of CPU time you want to request\r\n
 \t-x\t<partition>\tthe name of a partition (subset of nodes on\r\n
-\t\t\tan MPI machine) (srun/sbatch dependent)"
-VERBOSE_USAGE="${0##*/} Debugging, time information and default information\r\n
+\t\t\tan MPI machine) (srun/sbatch dependent)\r\n"
+VERBOSE_USAGE="\r\n${0##*/}: Debugging, time information and default information\r\n
 \t-d\t8\tTurns on the bash \"set -x\" flag.\r\n
 \t-d\t6\tRuns this script in testing mode to show what would run\r\n
 \t\t\tbut not actually run.\r\n
 \t-f\t<fs>\tdefaults to a file system of /p/lustre3\r\n
-\t-t\r<minutes>\tActually just passes through to srun. Defaults to\r\n
-\t\t\tone minute. See srun -t or --time to see all of the different\r\n
-\t\t\toptions like min:sec.  Based on one platform, observations,\r\n
-\t\t\tthe script now estimates the time at 1 minute per each one\r\n
-\t\t\thundred processes.  Your mileage may vary so you may need\r\n
-\t\t\tto tune this.\r\n
+\t-t\t<minutes>\tActually just passes through to srun. Defaults to\r\n
+\t\tone minute. There is now a complex system that attempts to\r\n
+\t\ttrack past usage to predict the number of milliseconds each\r\n
+\t\tprocess will need to run.\r\n
+\r\n
+\t\t\tDefault Process Rate and Increase Percentage\r\n
+\r\n
+\t\tThe default tables are kept in the etc subdirectory of\r\n
+\t\ttestdir and end in \*.default.txt  The prefix of the name is\r\n
+\t\tthe uppercase name of the test (e.g., IOR) followed by\r\n
+\t\tthe name of the file system under test. E.G.:\r\n
+\r\n
+\t\t\ttestdir/etc/IOR.lustre3.default.txt\r\n
+\r\n
+\t\tThe content of the file is three numbers separated by\r\n
+\t\tvertical pipe \"|\" characters.  The first number is the\r\n
+\t\tband of the number of processes.  E.G., 100 represents\r\n
+\t\tthan this is used for 1 to 100 processes, 200 for 101-200\r\n
+\t\tand so on.\r\n
+\r\n
+\t\tThe second number is a guess of the number of milliseconds\r\n
+\t\teach process will need to run to completion. Don't worry\r\n
+\t\tif your guess is too low or if you forget to enter this\r\n
+\t\tfile at all.  If you do a default one is created.\r\n\r\n
+\t\tThe third number is the percentage by which the\r\n
+\t\tpreviously estimated time is increased if the benchmark\r\n
+\t\tfailed due to exceeding estimated time.  A new GUESS\r\n
+\t\trow is created with a larger estimate for the next run,\r\n
+\r\n
+\t\tA sample:\r\n
+\r\n
+\t\t\t100|300|20\r\n
+\r\n
+\t\t\tProcrate Table\r\n
+\r\n
+\t\tA process rate table keeps track of the GUESSED and\r\n
+\t\tOBSERVED process rates for running the benchmark.\r\n
+\t\tThe table is kept in:\r\n
+\r\n
+\t\ttestdir/etc/IOR.lustre3.procrate.txt\r\n
+\r\n
+\t\tThe procrate table contains 5 entries separated by \"|\"\r\n
+\t\t\t1) The band of the number of processes that this tracks\r\n
+\t\t\t     (as above), 100 represents 1-100 processes\r\n
+\t\t\t2) The low GUESSED/OBSERVED milliseconds per process.\r\n
+\t\t\t     This number is initially guessed at the same value as\r\n
+\t\t\t     the HIGH miliseconds per process.  It is never increased\r\n
+\t\t\t     by an OBSERVED value, only decreased.\r\n
+\t\t\t3) The high number of milliseconds.  This value is only\r\n
+\t\t\t     increased by either OBSERVED values or by a new GUESS.\r\n
+\t\t\t4) OBSERVED/GUESS marks that this row was created by\r\n
+\t\t\t     either an initial GUESS (see default.txt above) or by\r\n
+\t\t\t     a replacement row where the GUESS high value is\r\n
+\t\t\t     increased by the percentage in the default.txt table.\r\n
+\t\t\t5) The lowest OBSERVED high value.  This always starts\r\n
+\t\t\t     at zero (0) with a guess and keeps increasing.\r\n
+\r\n
+\t\tA sample: (assuming the prior run timed out!)\r\n
+\r\n
+\t\t\t100|250|10000|GUESS|7500\r\n
+\r\n
+\t\t\tBenchmark Run number\r\n
 \r\n
 \t\tThis script keeps a running count of how many times the script\r\n
 \t\thas been run and uses that number in naming the directory in\r\n
-\t\twhich the results are run.  It uses a lock file to prevent\r\n
+\t\twhich the results are placed.  It uses a lock file to prevent\r\n
 \t\tmultiple instances of the from updating the count\r\n
 \t\tinconsistently.  If you see the script spinning on the lock\r\n
 \t\tfile, you may have to kill the script and manually remove the\r\n
-\t\tlock file.\r\n"
+\t\tlock file from testdir\r\n
+\r\n
+\t\t\tBATCH Number\r\n
+\r\n
+\t\tIf the invoking script has defined the environment variable\r\n
+\t\tiorbatchstring, then each benchmark run result will be\r\n
+\t\tplace in a batch directory rather than standalone in\r\n
+\t\ttestdir\r\n"
 
 ####################
 # There must be at least one argument to this script which tells the
