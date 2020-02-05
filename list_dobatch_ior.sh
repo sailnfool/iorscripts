@@ -77,7 +77,7 @@ do
 			;;
 		f)
 			num=${OPTARG}
-			filesystemlistfile="${iorfilesystemlistprefix}.list{${num}.txt"
+			filesystemlistfile="${iorfilesystemlistprefix}.list${num}.txt"
 			if [ ! -r ${filesystemlistfile} ]
 			then
 				errecho ${0##*/} ${LINENO} "file ${filesystemlistfile} not found"
@@ -95,7 +95,7 @@ do
 			;;
 		r)
 			num=${OPTARG}
-			ior_runnerlistfile="${iorrunnerlistprefix}.list{num}.txt"
+			ior_runnerlistfile="${iorrunnerlistprefix}.list${num}.txt"
 			if [ ! -r ${ior_runnerlistfile} ]
 			then
 				errecho ${0##*/} ${LINENO} "file ${ior_runnerlistfile} not found"
@@ -113,7 +113,7 @@ do
 	esac
 done
 shift $((OPTIND-1))
-exit 1
+
 ###################
 # when we built ior, it was placed in a directory relative to the
 # home directory.
@@ -199,15 +199,14 @@ fi
 if [ ! -z "${filesystemlistfile}" ]
 then
 	filesystemlist=""
-	for filesystem in $(cat ${filesystemslistfile})
+	for filesystem in $(cat ${filesystemlistfile})
 	do
 		filesystemlist="${filesystemlist} ${filesystem}"
 	done
 fi
 if [ ! -z "${ior_runnerlistfile}" ]
 then
-	ior_runnerlist=""
-	for command in $(cat ${ior_runnerlistfile})
+	while read -r command
 	do
 		for filesystem in ${filesystemlist}
 		do
@@ -217,17 +216,15 @@ then
 				${command} -f ${filesystem} ${processlist}
 			fi
 		done
-	done
+	done < ${ior_runnerlistfile}
 else
-	for command in $(cat ${ior_runnerlist})
+	command=${runnerlist}
+	for filesystem in ${filesystemlist}
 	do
-		for filesystem in ${filesystemlist}
-		do
-			echo "${command} -f ${filesystem} ${processlist}"
-			if [ $debug -lt ${DEBUGNOEXECUTE} ]
-			then
-				${command} -f ${filesystem} ${processlist}
-			fi
-		done
+		echo "${command} -f ${filesystem} ${processlist}"
+		if [ $debug -lt ${DEBUGNOEXECUTE} ]
+		then
+			${command} -f ${filesystem} ${processlist}
+		fi
 	done
 fi
