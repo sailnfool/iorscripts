@@ -19,6 +19,7 @@ while getopts ${optargs} name
 do
 	case ${name} in
 		h)
+			FUNC_VERBOSE=1
 			errecho "-e" ${USAGE}
 			exit 0
 			;;
@@ -26,6 +27,7 @@ do
 			exponent=${OPTARG}
 			;;
 		\?)
+			FUNC_VERBOSE=1
 			errecho "-e" ${LINENO} "invalid option: -${OPTARG}"
 			errecho "-e" ${LINENO} ${USAGE}
 			exit 1
