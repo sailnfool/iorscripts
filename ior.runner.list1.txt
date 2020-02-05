@@ -1,0 +1,9 @@
+ior_runner -x mi25 -D -p 3
+ior_runner -x mi25 -D -p 10
+ior_runner -x mi25 -D -p 50
+ior_runner -x mi25 -Y -p 3
+ior_runner -x mi25 -Y -p 10
+ior_runner -x mi25 -Y -p 50
+ior_runner -x mi25 -p 3
+ior_runner -x mi25 -p 10
+ior_runner -x mi25 -p 50

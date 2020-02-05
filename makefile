@@ -6,7 +6,7 @@
 
 INSTALL = extract_ior \
 					extract_md \
-					ior_runner dobatch_ior \
+					ior_runner dobatch_ior dobatch_ior_list \
 					md_runner dobatch_md \
 					func.logger \
 					func.global
