@@ -1,4 +1,11 @@
 #!/bin/bash
+########################################################################
+# Author: Robert E. Novak
+# email: novak5@llnl.gov, sailnfool@gmail.com
+#
+# Run a batch of mdtest benchmarks
+#
+########################################################################
 ####################
 # when we built ior, it was placed in a directory relative to the
 # home directory.

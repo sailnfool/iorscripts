@@ -1,4 +1,11 @@
 #!/bin/bash
+########################################################################
+# Author: Robert E. Novak
+# email: novak5@llnl.gov, sailnfool@gmail.com
+#
+# Run a batch of ior benchmarks
+#
+########################################################################
 ####################
 # when we built ior, it was placed in a directory relative to the
 # home directory.
@@ -16,8 +23,8 @@ iorinstalldir=${iorhomedir}/install.ior
 iorbindir=${iorinstalldir}/bin
 
 ####################
-# we will place the testing directory at the same level as the installation
-# directory, not as a subset of the installation.
+# we will place the testing directory at the same level as the
+# installation directory, not as a subset of the installation.
 ####################
 iortestdir=$(realpath ${iorinstalldir}/../testdir)
 ioretcdir=${iortestdir}/etc
@@ -25,8 +32,8 @@ ioretcdir=${iortestdir}/etc
 mkdir -p ${iortestdir} ${ioretcdir}
 
 ####################
-# Create a lock file so that two different scripts don't update the test
-# number
+# Create a lock file so that two different scripts don't update the
+# test number
 ####################
 while [ -f ${ioretcdir}/lock ]
 do
@@ -37,8 +44,8 @@ done
 touch ${ioretcdir}/{lock,lock_process_${USER}_$$}
 
 ####################
-# Use a file to keep track of the number of tests that have been run by this 
-# script against the executable.
+# Use a file to keep track of the number of tests that have been run
+# by this script against the executable.
 ####################
 iorbatchnumberfile=${ioretcdir}/IOR.BATCHNUMBER
 
@@ -78,7 +85,8 @@ then
 	then
 		cp ~/tasks/scripts/ior.list ${ioretcdir}/ior.list
 	else
-		errecho ${FUNCNAME} ${LINENO} "Could not find list of process numbers ior.list"
+		errecho ${FUNCNAME} ${LINENO} \
+			"Could not find list of process numbers ior.list"
 		exit 1
 	fi
 fi

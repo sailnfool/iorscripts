@@ -1,4 +1,12 @@
 #!/bin/bash
+########################################################################
+# Author: Robert E. Novak
+# email: novak5@llnl.gov, sailnfool@gmail.com
+#
+# Log entries in a common log file for tracking down problems
+# with benchmark scripts going astray.
+#
+########################################################################
 # Log entries willbe single line records and will  contain multiple
 # fields and the fields will be separated by a vertical pipe
 # character "|" to separate the fields of the record.

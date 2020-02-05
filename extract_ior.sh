@@ -1,4 +1,11 @@
 #!/bin/bash
+########################################################################
+# Author: Robert E. Novak
+# email: novak5@llnl.gov, sailnfool@gmail.com
+#
+# Extract data from ior benchmark files into a CSV File
+#
+########################################################################
 source func.errecho
 USAGE="${0##*/} [-vh] [-d #] [-c <tab file>] <ior files> ...\r\n
 \t\tprocess a set of ior output files to turn them into suitable\r\n
@@ -14,7 +21,14 @@ VERBOSE_USAGE="${0##*/} will be used in conjunction with iorunner, a\r\n
 \t\tscript that will run a series of tests against a file system with\r\n
 \t\ta varying number of processes on systems.  This will produce the\r\n
 \t\tior files used as input. See \"iorunner -h\" for\r\n
-\t\tmore information.\r\n\r\n
+\t\tmore information.\r\n
+\r\n
+\t\tcd testdir/<batch directory>\r\n
+\r\n
+\t\textract_ior \$(find . -name \"IOR\*.txt\" -print)\r\n
+\r\n
+\t\tls -l \*.csv\r\n
+\r\n
 \t\tThese files are suitable for loading into your favorite\r\n
 \t\tspreadsheet program to create graphs.  Each line of output\r\r
 \t\tis a summary of an ior output file.  Multiple scripts are\r\n

@@ -1,4 +1,12 @@
 #!/bin/bash
+########################################################################
+# Author: Robert E. Novak
+# email: novak5@llnl.gov, sailnfool@gmail.com
+#
+# Set up Global variables for ior and mdtest benchmarks
+# Define func_getlock and func_release to avoid conflicts
+#
+########################################################################
 if [ -z "${__funcglobal}" ]
 then
 	export __funcglobal=1
