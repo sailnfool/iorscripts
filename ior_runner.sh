@@ -357,6 +357,11 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 ####################
 echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
+if [ ! -r ${IOR_TESTNUMBERFILE} ]
+then
+	echo 0 > ${IOR_TESTNUMBERFILE} 
+fi
+
 iortestnumber=$(cat ${IOR_TESTNUMBERFILE})
 
 ####################
@@ -368,7 +373,7 @@ echo ${iortestnumber} > ${IOR_TESTNUMBERFILE}
 ####################
 # Now we can release the lock
 ####################
-echo $(func_releaselock)
+echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
 # retrieve the current test number and stuff it in a test string for

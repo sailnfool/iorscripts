@@ -243,14 +243,16 @@ echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
 # if it does not exist, initialize it with a zero value
-# otherwise retrieve the number in the file.
 ####################
 if [ ! -f ${MD_TESTNUMBERFILE} ]
 then
-	mdtestnumber=0
-else
-	mdtestnumber=$(cat ${MD_TESTNUMBERFILE})
+	echo 0 > ${MD_TESTNUMBERFILE}
 fi
+
+####################
+# retrieve the number in the file.
+####################
+mdtestnumber=$(cat ${MD_TESTNUMBERFILE})
 
 ####################
 # bump the test number and stuff it back in the file.
@@ -259,7 +261,10 @@ fi
 ((++mdtestnumber))>/dev/null
 echo ${mdtestnumber} > ${MD_TESTNUMBERFILE}
 
-echo $(func_releaselock)
+####################
+# Now we can release the lock
+####################
+echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
 # Retrieve the current MD testnumber and stuff it in a zero prefixed
