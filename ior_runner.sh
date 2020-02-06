@@ -505,7 +505,7 @@ if [ "${wantCSV}" = "TRUE" ]
 then
 	iordirectivefile=${iortestresultdir}/directive
 	echo "summaryFormat=CSV" > ${iordirectivefile}
-	echo "summaryFile=${iortestresultdir}/results.csv" > ${iordirectivefile}
+	echo "summaryFile=${iortestresultdir}/results.csv" >> ${iordirectivefile}
 	ioropts="${ioropts} -f ${iordirectivefile}"
 fi
 #errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
@@ -654,7 +654,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		####################
 		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
-		echo "100|300|20" >> ${procdefault_file}
+		echo "100|700|100" >> ${procdefault_file}
 		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 	fi
 	linesread=0
