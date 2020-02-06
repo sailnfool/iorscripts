@@ -505,6 +505,7 @@ if [ "${wantCSV}" = "TRUE" ]
 then
 	iordirectivefile=${iortestresultdir}/directive
 	echo "summaryFormat=CSV" > ${iordirectivefile}
+	echo "summaryFile=${iortestresultdir}/results.csv" > ${iordirectivefile}
 	ioropts="${ioropts} -f ${iordirectivefile}"
 fi
 #errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
