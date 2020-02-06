@@ -490,7 +490,8 @@ do
 		# Instead of exiting we could emit a default file here
 		####################
 		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
-		echo "100|300|20" > ${procdefault_file}
+		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
+		echo "100|300|20" >> ${procdefault_file}
 		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 		#exit 1
 	fi # if [ ! -r ${procdefault_file} ]
@@ -499,9 +500,15 @@ do
 	IFS="|"
 	while read -r band default percent
 	do
-		export PROC_BAND=${band}
-		export DEFAULT_MS=${default}
-		export FAIL_PERCENT=${percent}
+		####################
+		# Skip the title line
+		####################
+		if [ ! "$band" = "BAND" ]
+		then
+			export PROC_BAND=${band}
+			export DEFAULT_MS=${default}
+			export FAIL_PERCENT=${percent}
+		fi
 		((++linesread))
 	done < ${procdefault_file}
 	IFS=$OLDIFS
@@ -533,8 +540,9 @@ do
 		errecho ${0##*/} ${LINENO} \
 			"File Not found ${procrate_file}"
 		errecho ${0##*/} ${LINENO} \
-			"Creating a one line default table"
-		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" > ${procrate_file}
+			"Creating a two line default table"
+		echo ${PROCRATE_TITLES} > ${procrate_file}
+		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" >> ${procrate_file}
 		changed_procrate_file="FALSE"
 		cat ${procrate_file}
 	fi
@@ -544,21 +552,21 @@ do
 	while read -r band low high gob obhigh
 	do
 		((++linesread))
-		lo_ms[$band]=$low
-		hi_ms[$band]=$high
-		gobs[$band]=$gob
-		if [ -z "$obhigh" ]
+		if [ ! "$band" = "BAND" ]
 		then
-			obhigh=0
+			lo_ms[$band]=$low
+			hi_ms[$band]=$high
+			gobs[$band]=$gob
+			obhi_ms[$band]=$obhigh
 		fi
-		obhi_ms[$band]=$obhigh
 	done < ${procrate_file}
 	IFS=$OLDIFS
 
 	####################
 	# If we did not get any data out of the procrate file, quit
+	# Must get the title line and one data line
 	####################
-	if [ ${linesread} -eq 0 ]
+	if [ ${linesread} -lt 2 ]
 	then
 		errecho ${0##*/} ${LINENO} \
 			"Could not read ${procrate_file}"
@@ -740,13 +748,12 @@ tee -a "${mdtestname}"
 			####################
 			gobs[$band]=GUESS
 			obhi_ms[$band]=0
+			lo_ms[$band]=${hi_ms[$band]}
 
 			####################
-			# We sort the old file before we remember it as the old file
-			# This is not needed for a computational reason but it is
-			# easier for people to read a sorted file
+			# Save the old file in the event of failure
 			####################
-			sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
+			cp ${procrate_file}  ${procrate_file}.old.txt
 			
 			####################
 			# We remove the current file and write a new one dumped from
@@ -760,10 +767,11 @@ tee -a "${mdtestname}"
 					obhi_ms[$band]=0
 				fi
 				echo  \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[$band]}" \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[${band}]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
-			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+			echo ${PROCRATE_TITLES} > ${procrate_file}
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} >> ${procrate_file}
 			rm -f ${PROCRATE_TMPFILE}
 			changed_procrate_file="FALSE"
 		else
@@ -806,6 +814,7 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 		####################
 		# if we have reached a new high for this band, update the high
 		####################
+		changed_procrate_file="FALSE"
 		if [ ! -z "${obhi_ms[$band]}" ]
 		then
 			if [ ${new_ms} -gt ${obhi_ms[$band]} ]
@@ -854,8 +863,9 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[${band}]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
-			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
-			#rm -f ${PROCRATE_TMPFILE}
+			echo ${PROCRATE_TITLES} > ${procrate_file}
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} >> ${procrate_file}
+			rm -f ${PROCRATE_TMPFILE}
 			changed_procrate_file="FALSE"
 		fi
 	
@@ -867,5 +877,6 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 "${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}")
 	fi
 done
+rm -f ${procrate_file}.old.txt ${PROCRATE_TMPFILE}
 exit 0
 # vim: set syntax=bash, ts=2, sw=2, lines=55, columns=120,colorcolumn=78

@@ -649,26 +649,32 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		errecho ${0##*/} ${LINENO} \
 			"the amount by which to increase guess times after failures"
 		####################
-		# Instead of exiting we could emit a default file here
+		# Instead of exiting we emit a default file here
 		####################
 		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
-		echo "100|300|20" > ${procdefault_file}
+		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
+		echo "100|300|20" >> ${procdefault_file}
 		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
-		#exit 1
 	fi
 	linesread=0
 	OLDIFS=$IFS
 	IFS="|"
 	while read -r band default percent
 	do
-		export PROC_BAND=${band}
-		export DEFAULT_MS=${default}
-		export FAIL_PERCENT=${percent}
+		####################
+		# Skip the title line
+		####################
+		if [ ! "$band" = "BAND" ]
+		then
+			export PROC_BAND=${band}
+			export DEFAULT_MS=${default}
+			export FAIL_PERCENT=${percent}
+		fi
 		((++linesread))
 	done < ${procdefault_file}
 	IFS=$OLDIFS
 
-	if [ ${linesread} -eq 0 ]
+	if [ ${linesread} -lt 2 ]
 	then
 		errecho ${0##*/} ${LINENO} \
 			"Could not read ${procdefault_file}"
@@ -694,8 +700,9 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		errecho ${0##*/} ${LINENO} \
 			"File Not Found ${procrate_file}"
 		errecho ${0##*/} ${LINENO} \
-			"Creating a one-line default table"
-		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" > ${procrate_file}
+			"Creating a two-line default table"
+		echo ${PROCRATE_TITLES} > ${procrate_file}
+		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" >> ${procrate_file}
 		changed_procrate_file="FALSE"
 	fi
 	linesread=0
@@ -704,17 +711,21 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	while read -r band low high gob obhigh
 	do
 		((++linesread))
-		lo_ms[$band]=$low
-		hi_ms[$band]=$high
-		gobs[$band]=$gob
-		obhi_ms[$band]=$obhigh
+		if [ ! "$band" = "BAND" ]
+		then
+			lo_ms[$band]=$low
+			hi_ms[$band]=$high
+			gobs[$band]=$gob
+			obhi_ms[$band]=$obhigh
+		fi
 	done < ${procrate_file}
 	IFS=$OLDIFS
 		
 	####################
 	# If we did not get any data out of the procrate file, quit
+	# We need the title line and one line of data
 	####################
-	if [ ${linesread} -eq 0 ]
+	if [ ${linesread} -lt 2 ]
 	then
 		errecho ${0##*/} ${LINENO} 
 			"Could not read ${procrate_file}"
@@ -875,13 +886,13 @@ tee -a ${iortestname}
 			# a guess.
 			####################
 			gobs[$band]=GUESS
+			obhi_ms[$band]=0
+			lo_ms[$band]=${hi_ms[$band]}
 
 			####################
-			# We sort the old file before we remember it as the old file
-			# This is not needed for a computational reason but it is
-			# easier for people to read a sorted file
+			# Save the old file if we die in the middle
 			####################
-			sort -u -n -t "|" < ${procrate_file} > ${procrate_file}.old.txt
+			cp ${procrate_file}  ${procrate_file}.old.txt
 			
 			####################
 			# We remove the current file and write a new one dumped from
@@ -890,17 +901,15 @@ tee -a ${iortestname}
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
-				echo -n \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|" \
-					>> ${PROCRATE_TMPFILE}
 				if [ -z "${obhi_ms[$band]}" ]
 				then
 					obhi_ms[$band]=0
 				fi
-				echo -n \
-			"${gobs[${band}]}|${obhi_ms[${band}]}" \
+				echo  \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[${band}]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
+			echo ${PROCRATE_TITLES} > ${procrate_file}
 			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
 			rm -f ${PROCRATE_TMPFILE}
 			changed_procrate_file="FALSE"
@@ -989,18 +998,16 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 			rm ${procrate_file}
 			for band in "${!lo_ms[@]}"
 			do
-				echo -n \
-			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|" \
-					>> ${PROCRATE_TMPFILE}
 				if [ -z "${obhi_ms[$band]}" ]
 				then
 					obhi_ms[$band]=0
 				fi
 				echo \
-			"${gobs[${band}]}|${obhi_ms[$band]}" \
+			"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[$band]}" \
 					>> ${PROCRATE_TMPFILE}
 			done
-			sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
+			echo ${PROCRATE_TITLES} > ${procrate_file}
+			sort -u -n -t "|" ${PROCRATE_TMPFILE} >> ${procrate_file}
 			rm -f ${PROCRATE_TMPFILE}
 			changed_procrate_file="FALSE"
 		fi
@@ -1013,5 +1020,6 @@ $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
 "${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" )
 	fi
 done
+rm -f ${procrate_file}.old.txt ${PROCRATE_TMPFILE}
 exit 0
 # vim: set syntax=bash, ts=2, sw=2, lines=55, columns=120,colorcolumn=78

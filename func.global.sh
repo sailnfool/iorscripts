@@ -27,6 +27,8 @@ then
 	export IOR_LOCKFILE=${IOR_ETCDIR}/lock
 	export PROCRATE_SUFFIX=procrate.txt
 	export PROCDEFAULT_SUFFIX=default.txt
+	export PROCDEFAULT_TITLES="BAND|Default Hi Milliseconds Guess|Percentage Bump on Faulure"
+	export PROCRATE_TITLES="BAND|LO Milliseconds|HI Guessed Milliseconds|Guessed of Observe Data|HI Observed Milliseconds"
 	export TESTLOG_SUFFIX=testlog.txt
 	export IOR_TESTLOG=${IOR_ETCDIR}/${IOR_UPPER}.${TESTLOG_SUFFIX}
 	export MD_TESTLOG=${IOR_ETCDIR}/${MD_UPPER}.${TESTLOG_SUFFIX}
