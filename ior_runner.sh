@@ -505,7 +505,7 @@ if [ "${wantCSV}" = "TRUE" ]
 then
 	iordirectivefile=${iortestresultdir}/directive
 	echo "summaryFormat=CSV" > ${iordirectivefile}
-	echo "summaryFile=${iortestresultdir}/results.csv" >> ${iordirectivefile}
+	echo "summaryFile=${iorfilesystem}/${USER}/results.csv" >> ${iordirectivefile}
 	ioropts="${ioropts} -f ${iordirectivefile}"
 fi
 #errecho ${0##*/} ${LINENO} "ioropts=${ioropts}" >&2
@@ -829,16 +829,20 @@ x="${iortestresultdir}/ior.${fsbase}_${testnamesuffix}.txt"
 	# echo out the name of the srun command that will be issued
 	# Ideally this should be added to func.logger to avoid later problems
 	####################
-	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} \
+	command_date_began=$(date -u)
+	command_line="srun ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -t ${srun_time} \
 ${IOR_EXEC} ${ioropts} -o ${iorfilesystem}/$USER/ior.seq 2>&1 | \
-tee -a ${iortestname}" | tee -a ${IOR_TESTLOG}
+tee -a ${iortestname}"
+	echo "COMMAND|${command_date_began}|${command_line}" | \
+		tee -a ${IOR_TESTLOG}
 
 	####################
 	# If we are not just testing, the run the test.
 	####################
 	if [ "${runner_testing}" = "FALSE" ]
 	then
+
 		date_began=$(date)
 
 		####################
@@ -875,11 +879,13 @@ tee -a ${iortestname}
 			# at a level that is FAIL_PERCENT higher for the next time
 			# we run the benchmark in this band of processes.
 			####################
-			completion=FAIL
+			completion="FAIL"
 			oldtime=${hi_ms[$band]}
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
 			errecho ${0##*/} ${LINENO} \
 				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
+			echo "COMMAND_FAILED|${command_date_began}|${command_line}" | \
+				tee -a ${IOR_TESTLOG}
 
 			####################
 			# Following a failure we don't have true observed time. As
@@ -920,7 +926,7 @@ tee -a ${iortestname}
 			# We will mark the successful completion we remember the success
 			# or fail to mark it in the log.
 			####################
-			completion=SUCCESS
+			completion="SUCCESS"
 		fi
 
 		####################
