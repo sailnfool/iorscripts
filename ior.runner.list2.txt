@@ -1,1 +1,1 @@
-ior_runner -x mi25 -c -D -p 3
+ior_runner -x mi25 -D -p 3
