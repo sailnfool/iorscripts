@@ -1,1 +1,0 @@
-ior_runner -x mi25 -d 9 -c -D -p 3

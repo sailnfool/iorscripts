@@ -1,3 +1,0 @@
-/p/lustre3
-/p/vast1
-/p/lustre1

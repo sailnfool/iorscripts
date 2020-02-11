@@ -55,6 +55,7 @@ USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> -x <partition> <#procs
 \t-h\tPrint this message\r\n
 \t-v\tSet verbose mode. If set before -h you get verbose help\r\n
 \t-d\t#\tturn on diagnostics level #\r\n
+\t-D\t#\tTurn on --posix.odirect
 \t-f\t<filesystem>\trun mdtest against the named filesystem/\$USER\r\n
 \t-p\t#\tthe minimum percentage of nodes acroos which the\r\n
 \t\t\tload will be distributed\r\n
@@ -133,6 +134,11 @@ srun_time=1
 runner_verbose="FALSE"
 
 ####################
+# Default is to NOT use ODIRECT mode
+####################
+wantODIRECT="FALSE"
+
+####################
 # Added an -x command line option to specify an alternate partition
 # the names of the partitions come from the 'scontrol' command
 #
@@ -147,7 +153,7 @@ setpartition="FALSE"
 # These are the getopt flags processed by mdrunner.  They are hopefully
 # adequately understandable from the (-h) flag.
 ####################
-runner_optionargs="hvt:d:f:p:N:o:x:"
+runner_optionargs="hDvt:d:f:p:N:o:x:"
 
 while getopts ${runner_optionargs} name
 do
@@ -163,6 +169,9 @@ do
 			then
 				runner_testing="TRUE"
 			fi
+			;;
+		D)
+			wantODIRECT="TRUE"
 			;;
 		f)	# Fileystem
 			filesystem="${OPTARG}"
@@ -289,7 +298,7 @@ mdbatchstring=${mdbatchstring:=""}
 # In this same directory, we will place the directives file (if used)
 # and the information about the version of IOR that is under test.
 ####################
-x="${IOR_TESTDIR}/${mdbatchstring}/${starttime}_${mdteststring}"
+x="${TESTDIR}/${mdbatchstring}/${starttime}_${mdteststring}"
 mdtestresultdir="${x}"
 mkdir -p ${mdtestresultdir}
 
@@ -299,7 +308,7 @@ mkdir -p ${mdtestresultdir}
 # store this information in the testresultdirectory in a file called
 # VERSION_info.txt
 ####################
-iorbuilddate=$(sourcedate -t ${IOR_INSTALLDIR})
+iorbuilddate=$(sourcedate -t ${INSTALLDIR})
 
 echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 echo "mdtest Build Date information" >> ${MD_METADATAFILE}
@@ -364,6 +373,14 @@ mdopts="-i 2 -I 256 -z 1 -b 64 -L -u -F"
 if [ ! -z "${new_options}" ]
 then
 	mdopts="${new_options}"
+fi
+
+####################
+# If we want the posix odirect mode
+####################
+if [ "${wantODIRECT}" = "TRUE" ]
+then
+ mdopts="${mdopts} --posix.odirect"
 fi
 
 ####################
@@ -474,7 +491,7 @@ do
 	####################
 	fileprefix=${MD_UPPER}.${fsbase}
 
-	procdefault_file=${IOR_ETCDIR}/${fileprefix}.${PROCDEFAULT_SUFFIX}
+	procdefault_file=${ETCDIR}/${fileprefix}.${PROCDEFAULT_SUFFIX}
 
 	if [ ! -r ${procdefault_file} ]
 	then
@@ -532,7 +549,7 @@ do
 	# is marked as a GUESS.
 	####################
 
-	procrate_file=${IOR_ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
+	procrate_file=${ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
 	changed_procrate_file="FALSE"
 
 	if [ ! -r ${procrate_file} ]
@@ -688,10 +705,17 @@ x="${mdtestresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	####################
 	# echo out the name of the srun command that will be issued
 	####################
-	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} \
+	command_date_began=$(date -u)
+	command_line="srun ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -t ${srun_time} \
-${MD_EXEC} ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
-tee -a ${mdtestname}" | tee -a ${IOR_TESTLOG}
+${MD_EXEC} ${mdopts} -d ${filesystem}/${USER}/md.seq 2>&1 | \
+tee -a ${mdtestname}"
+	echo "COMMAND|${command_date_began}|${command_line}" | \
+		tee -a ${TESTLOG}
+#	echo "COMMAND|$(date -u)| srun ${partitionopt} -n ${numprocs} \
+#-N ${srun_NODES} -t ${srun_time} \
+#${MD_EXEC} ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
+#tee -a ${mdtestname}" | tee -a ${TESTLOG}
 
 	####################
 	# If we are not just testing, then run the test.
@@ -710,13 +734,15 @@ tee -a ${mdtestname}" | tee -a ${IOR_TESTLOG}
 		####################
 		# Run the benchmark test
 		####################
-		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
--t "${srun_time}" \
-"${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
-tee -a "${mdtestname}"
+		${command_line}
+
+#		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
+#-t "${srun_time}" \
+#"${MD_EXEC}" ${mdopts} -d ${filesystem}/$USER/md.seq 2>&1 | \
+#tee -a "${mdtestname}"
+
 		if [ $(grep "${SRUNKILLSTRING}" ${mdtestname} | wc -l ) -eq 1 ]
 		then
-			echo ${0##*/} ${LINENO} Job FAILED due to time ${mdtestname}
 			srun_status=1
 		else
 			srun_status=0
@@ -740,6 +766,8 @@ tee -a "${mdtestname}"
 			((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
 			errecho ${0##*/} ${LINENO} \
 				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
+			echo "COMMAND_FAILED|${command_date_began}|${command_line}" | \
+				tee -a ${TESTLOG}
 
 			####################
 			# Following a failure we don't have true observed time. As
