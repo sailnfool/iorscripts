@@ -843,9 +843,8 @@ tee -a ${iortestname}"
 		echo "#SBATCH --license=${fsbase}" >> ${sbatchfile}
 		echo "#SBATCH --mail-type=all" >> ${sbatchfile}
 		echo "command_date_began=\$(date -u)" >> ${sbatchfile}
-		batch_command="srun ${IOR_EXEC} ${default_options} " \
-			"-o ${filesystem}/$USER/ior.seq 2>&1 | " \
-			"tee -a ${iortestname} "
+		batch_command="srun ${IOR_EXEC} ${default_options} 
+-o ${filesystem}/$USER/ior.seq 2>&1 | tee -a ${iortestname} "
 		echo "echo \"COMMAND|\${command_date_began}|${batch_command} | " \
 			"tee -a ${TESTLOG}" >> ${sbatchfile}
 		echo "${batch_command}" >> ${sbatchfile}
@@ -877,7 +876,9 @@ tee -a ${iortestname}"
 			# Run the benchmark test
 			####################
 			echo ${command_line}
-			bash ${command_line}
+			set -x
+			echo ${command_line} | bash
+			set +x
 
 			if [ "wantCSV" = "TRUE" ]
 			then
@@ -1064,10 +1065,13 @@ done # for numprocs in ${testcounts}
 
 if [ "${wantSBATCH}" = "TRUE" ]
 then
-	for sbatch_script in ${testresultdir}/sbatch_*.sh
-	do
-		bash ${sbatch_script}
-	done
+	if [ "${runner_testing}" = "FALSE" ]
+	then
+		for sbatch_script in ${testresultdir}/sbatch_*.sh
+		do
+			bash ${sbatch_script}
+		done
+	fi
 fi
 
 rm -f ${procrate_file}.old.txt ${PROCRATE_TMPFILE}
