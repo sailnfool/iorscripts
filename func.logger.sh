@@ -94,18 +94,18 @@ then
 
 		logexecbase=${logexec##*/}
 		upper_exec=$(echo ${logexecbase}|tr [:lower:] [:upper:])
-		if [ -z "${IOR_TESTLOG}" ]
+		if [ -z "${TESTLOG}" ]
 		then
-			if [ -z "${IOR_TESTDIR}" ]
+			if [ -z "${TESTDIR}" ]
 			then
 				errecho ${FUNCNAME} ${LINENO} \
-					"Environment variable IOR_TESTDIR not set"
+					"Environment variable TESTDIR not set"
 				errecho ${FUNCNAME} ${LINENO} \
-					"Environment variable IOR_TESTLOG not set"
+					"Environment variable TESTLOG not set"
 				exit 1
 			else
-				export IOR_ETCDIR=${IOR_TESTDIR}/etc
-				export IOR_TESTLOG=${IOR_ETCDIR}/${upper_exec}.testlog.txt
+				export ETCDIR=${TESTDIR}/etc
+				export TESTLOG=${ETCDIR}/${upper_exec}.testlog.txt
 			fi
 		fi
 
@@ -116,7 +116,7 @@ then
 				####################
 				if [ ${mod_test_number} -eq 0 ]
 				then
-					echo "${starttitles}" >> ${IOR_TESTLOG}
+					echo "${starttitles}" >> ${TESTLOG}
 				fi
 				NUMSTARTARGS=9
 				if [ $# -lt ${NUMSTARTARGS} ]
@@ -131,7 +131,7 @@ then
 # 				lognumnodes="$9"
 				echo \
 					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}" \
-					>> ${IOR_TESTLOG}
+					>> ${TESTLOG}
 				;;
 			FINISH)	# Handle the FINISH Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -140,7 +140,7 @@ then
 				####################
 				# Write the titles to the log files
 				####################
-					echo "${finishtitles}" >> ${IOR_TESTLOG}
+					echo "${finishtitles}" >> ${TESTLOG}
 				fi
 				NUMFINISHARGS=9
 				if [ $# -lt ${NUMFINISHARGS} ]
@@ -156,7 +156,7 @@ then
 #	        log_completion="${10}"
 				echo \
 					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}" \
-					>> ${IOR_TESTLOG}
+					>> ${TESTLOG}
 				;;
 			DELTA)	# Handle the DELTA Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -165,7 +165,7 @@ then
 					####################
 					# Write the titles to the log files
 					####################
-					echo "${deltatitles}" >> ${IOR_TESTLOG}
+					echo "${deltatitles}" >> ${TESTLOG}
 				fi
 				NUMDELTAARGS=11
 				if [ $# -lt ${NUMDELTAARGS} ]
@@ -183,7 +183,7 @@ then
 #					log_completion="$12}"
 				echo \
 	"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}|${11}|${12}" \
-					>> ${IOR_TESTLOG}
+					>> ${TESTLOG}
 				;;
 			RATE)	# Handle the RATE Log entry
 				if [ ${mod_test_number} -eq 0 ]
@@ -192,7 +192,7 @@ then
 					####################
 					# Write the titles to the log files
 					####################
-					echo "${ratetitles}" >> ${IOR_TESTLOG}
+					echo "${ratetitles}" >> ${TESTLOG}
 				fi
 				NUMRATEARGS=10
 				if [ $# -lt ${NUMRATEARGS} ]
@@ -208,7 +208,7 @@ then
 # 				lognewrate=$10
 				echo \
 					"${1}|${2}|${3}|${4}|${5}|${6}|${7}|${8}|${9}|${10}" \
-					>> ${IOR_TESTLOG}
+					>> ${TESTLOG}
 				;;
 			\?)
 				errecho ${FUNCNAME} ${LINENO} "Invalid Log Type ${logevent}"

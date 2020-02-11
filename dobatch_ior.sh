@@ -100,10 +100,10 @@ do
 	ior_runner -x mi25 -f ${filesystem} -D -p 50  ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -D -p 10 ${proclist}"
 	ior_runner -x mi25 -f ${filesystem} -D -p 10  ${proclist}
-	echo "ior_runner -x mi25 -f ${filesystem} -p 50 -o "-Y" ${proclist}"
-	ior_runner -x mi25 -f ${filesystem} -p 50  -o "-Y" ${proclist}
-	echo "ior_runner -x mi25 -f ${filesystem} -p 10 -o "-Y" ${proclist}"
-	ior_runner -x mi25 -f ${filesystem} -p 10  -o "-Y" ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 50 -a "-Y" ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 50  -a "-Y" ${proclist}
+	echo "ior_runner -x mi25 -f ${filesystem} -p 10 -a "-Y" ${proclist}"
+	ior_runner -x mi25 -f ${filesystem} -p 10  -a "-Y" ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -p 50  ${proclist}"
 	ior_runner -x mi25 -f ${filesystem} -p 50  ${proclist}
 	echo "ior_runner -x mi25 -f ${filesystem} -p 10 ${proclist}"

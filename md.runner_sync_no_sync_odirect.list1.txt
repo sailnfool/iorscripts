@@ -1,0 +1,9 @@
+md_runner -x mi25 -a "--posix.odirect" -p 3
+md_runner -x mi25 -a "--posix.odirect" -p 10
+md_runner -x mi25 -a "--posix.odirect" -p 50
+md_runner -x mi25 -a "-Y" -p 3
+md_runner -x mi25 -a "-Y" -p 10
+md_runner -x mi25 -a "-Y" -p 50
+md_runner -x mi25 -p 3
+md_runner -x mi25 -p 10
+md_runner -x mi25 -p 50

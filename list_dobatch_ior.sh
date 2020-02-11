@@ -11,9 +11,9 @@
 source func.global
 source func.errecho
 
-ior_filesystemlistprefix=ior.filesystems
-ior_runnerlistprefix=ior.runner
-ior_processlistprefix=ior.processlist
+ior_filesystemlistprefix='ior.filesystems*'
+ior_runnerlistprefix='ior.runner*'
+ior_processlistprefix='ior.processlist*'
 
 ior_runnerlist="ior_runner -x mi25 -p10"
 ior_runnerlistfile=""
@@ -114,7 +114,7 @@ do
 done
 shift $((OPTIND-1))
 
-mkdir -p ${IOR_TESTDIR} ${IOR_ETCDIR}
+mkdir -p ${TESTDIR} ${ETCDIR}
 
 ####################
 # Create a lock file so that two different scripts don't update
@@ -126,21 +126,21 @@ echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 # if it does not exist, initialize it with a zero value
 ####################
 
-if [ ! -r ${IOR_BATCHNUMBERFILE} ]
+if [ ! -r ${BATCHNUMBERFILE} ]
 then
-	echo 0 > ${IOR_BATCHNUMBERFILE}
+	echo 0 > ${BATCHNUMBERFILE}
 fi
 
 ####################
 # retrieve the number in the file.
 ####################
-iorbatchnumber=$(cat ${IOR_BATCHNUMBERFILE})
+iorbatchnumber=$(cat ${BATCHNUMBERFILE})
 
 ####################
 # bump the test number and stuff it back in the file.
 ####################
 ((++iorbatchnumber))
-echo ${iorbatchnumber} > ${IOR_BATCHNUMBERFILE}
+echo ${iorbatchnumber} > ${BATCHNUMBERFILE}
 
 echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 

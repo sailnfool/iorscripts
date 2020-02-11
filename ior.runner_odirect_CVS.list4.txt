@@ -1,0 +1,1 @@
+ior_runner -x mi25 -c -a "--posix.odirect" -p 3

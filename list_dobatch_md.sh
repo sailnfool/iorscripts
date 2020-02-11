@@ -9,9 +9,9 @@
 source func.global
 source func.errecho
 
-md_filesystemlistprefix=md.filesystems
-md_runnerlistprefix=md.runner
-md_processlistprefix=md
+md_filesystemlistprefix='md.filesystems*'
+md_runnerlistprefix='md.runner*'
+md_processlistprefix='md.processlist*'
 
 md_runnerlist="md_runner -x mi25 -p10"
 md_runnerlistfile=""
@@ -20,7 +20,7 @@ md_filesystemlist="/p/lustre3"
 md_filesystemlistfile=""
 
 md_processlist=10
-md_processlist=""
+md_processlistfile=""
 
 debug=0
 DEBUGSETX=6
@@ -111,7 +111,7 @@ do
 done
 shift $((OPTIND-1))
 
-mkdir -p ${IOR_TESTDIR} ${IOR_ETCDIR}
+mkdir -p ${TESTDIR} ${ETCDIR}
 
 ####################
 # Create a lock file so that two different scripts don't update the test
@@ -120,30 +120,24 @@ mkdir -p ${IOR_TESTDIR} ${IOR_ETCDIR}
 echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
-# Use a file to keep track of the number of tests that have been run by this 
-# script against the executable.
-####################
-iorbatchnumberfile=${ioretcdir}/IOR.BATCHNUMBER
-
-####################
 # if it does not exist, initialize it with a zero value
 ####################
 
-if [ ! -r ${IOR_BATCHNUMBER} ]
+if [ ! -r ${BATCHNUMBERFILE} ]
 then
-	echo 0 > ${IOR_BATCHNUMBERFILE}
+	echo 0 > ${BATCHNUMBERFILE}
 fi
 
 ####################
 # retrieve the number in the file.
 ####################
-iorbatchnumber=$(cat ${IOR_BATCHNUMBERFILE})
+iorbatchnumber=$(cat ${BATCHNUMBERFILE})
 
 ####################
 # bump the test number and stuff it back in the file.
 ####################
 ((++iorbatchnumber))
-echo ${iorbatchnumber} > ${IOR_BATCHNUMBER}
+echo ${iorbatchnumber} > ${BATCHNUMBERFILE}
 
 ####################
 # Now we can release the lock 
