@@ -52,22 +52,23 @@ source func.hmsout
 
 USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> -x <partition> <#procs> ...\r\n
 \t\trun the mdtest benchmark with default options\r\n
-\t-h\tPrint this message\r\n
-\t-v\tSet verbose mode. If set before -h you get verbose help\r\n
+\t-h\t\tPrint this message\r\n
+\t-v\t\tSet verbose mode. If set before -h you get verbose help\r\n
+\t-a\t<opt>\tAdd options to the command line\r\n
 \t-d\t#\tturn on diagnostics level #\r\n
-\t-D\t#\tTurn on --posix.odirect
+\t-D\t#\tTurn on --posix.odirect\r\n
 \t-f\t<filesystem>\trun mdtest against the named filesystem/\$USER\r\n
-\t-p\t#\tthe number of processes per node\r\n
 \t-N\t#\tthe number of nodes that you want to run on.\r\n
-\n\nThis is a hard coded number. The numprocs will be distributed\r\n
-\n\nacross this set of nodes\r\n
-\r\n
+\t\tThis is a hard coded number. The numprocs will be distributed\r\n
+\t\tacross this set of nodes.\r\n
 \t\tIf not specified, it will be numprocs / processes per node\r\n
-\t-s\tAssemble the requested runs as SBATCH scripts and place\r\n
+\t-o\t<opt>\treplace the default options with these\r\n
+\t-p\t#\tthe number of processes per node\r\n
+\t-s\t\tAssemble the requested runs as SBATCH scripts and place\r\n
 \t\tin the BATCH directory\r\n
 \t-t\t#\tthe number of minutes of CPU time you want to request\r\n
-\t-x\t<partition>\tthe name of a partition (subset of nodes on\t\n
-\t\t\tan MPI machine) (srun/sbatch dependent)"
+\t-x\t<partition>\tthe name of a partition (subset of nodes on\r\n
+\t\tan MPI machine) (srun/sbatch dependent)\r\n"
 
 VERBOSE_USAGE="${0##*/} Debugging, time information and default information\r\n
 \t-d\t8\tTurns on the bash \"set -x\" flag.\r\n
@@ -198,6 +199,7 @@ srun_NODES="1"
 # in the script command line "-N"
 ####################
 setnodes="FALSE"
+processes_per_node=10
 
 ####################
 # The default is to ask for 1 minute of run time from srun
@@ -210,11 +212,6 @@ srun_time=1
 # Turn on runner verbose mode to give more complete help
 ####################
 runner_verbose="FALSE"
-
-####################
-# Default is to NOT use ODIRECT mode
-####################
-wantODIRECT="FALSE"
 
 ####################
 # Added an -x command line option to specify an alternate partition
@@ -231,7 +228,7 @@ setpartition="FALSE"
 # These are the getopt flags processed by mdrunner.  They are hopefully
 # adequately understandable from the (-h) flag.
 ####################
-runner_optionargs="hDvt:d:f:p:N:o:x:"
+runner_optionargs="hsva:t:d:f:p:N:o:x:"
 
 while getopts ${runner_optionargs} name
 do
@@ -250,9 +247,6 @@ do
 			then
 				runner_testing="TRUE"
 			fi
-			;;
-		D)
-			wantODIRECT="TRUE"
 			;;
 		f)	# Fileystem
 			filesystem="${OPTARG}"
@@ -337,7 +331,7 @@ starttime=$(date "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the test
 # number
 ####################
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # if it does not exist, initialize it with a zero value
@@ -362,7 +356,7 @@ echo ${testnumber} > ${TESTNUMBERFILE}
 ####################
 # Now we can release the lock
 ####################
-echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # Retrieve the current MD testnumber and stuff it in a zero prefixed
@@ -399,7 +393,7 @@ mkdir -p ${testresultdir}
 ####################
 iorbuilddate=$(sourcedate -t ${IOR_INSTALLDIR})
 
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 echo "mdtest Build Date information" >> ${MD_METADATAFILE}
 echo ${iorbuilddate} >> ${MD_METADATAFILE}
 echo $(func_releaselock)
@@ -449,9 +443,9 @@ then
 	errecho -e ${0##*/} ${LINENO} ${USAGE}
 	exit 1
 fi
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 mount | grep ${fsbase} >> ${MD_METADATAFILE}
-echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # Standard options we don't override
@@ -580,10 +574,10 @@ Requested ${srun_NODES}, Max=${MaxNodes}\r\n" >&2
 		####################
 		# Instead of exiting we could emit a default file here
 		####################
-		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+		echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
 		echo ${DEFAULT_STRING} >> ${procdefault_file}
-		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+		echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 	fi # if [ ! -r ${procdefault_file} ]
 
 	linesread=0
@@ -752,6 +746,8 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	####################
 	# Cleanup from prior runs (Specific recovery to mdtest)
 	####################
+	dirlock=${filesystem}/${USER}/md.lock
+	echo $(func_getlock ${dirlock} 30) | sed '/^$/d' | tee -a ${LOCKERRS}
 	dirhead=${filesystem}/$USER/md.seq
 	if [ -d ${dirhead} ]
 	then
@@ -773,6 +769,7 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 		fi
 		time rm -rf ${dirhead} 2>&1 | tee -a ${mdtestname}
 	fi
+	echo $(func_releaselock ${dirlock}) | sed '/^$'/d | tee -a ${LOCKERRS}
 
 	####################
 	# Check to see if we want to run in a different partion.
@@ -839,7 +836,8 @@ tee -a ${mdtestname}"
 		####################
 		# Run the benchmark test
 		####################
-		${command_line}
+		echo ${command_line}
+		bash ${command_line}
 
 #		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
 #-t "${srun_time}" \

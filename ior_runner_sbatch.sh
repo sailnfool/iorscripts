@@ -61,10 +61,9 @@ USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] \r\n
 \t\trelative to the number of processes.\r\n
 \t-h\tPrint this message\r\n
 \t-v\tSet verbose mode. If set before -h you get verbose help\r\n
-\t-a\t<options>\tAdditional options to add to the default set\r\n
+\t-a\t<opt>\tAdditional options to add to the default set\r\n
 \t-c\tSave output in CSV format\r\n
 \t-d\t#\tturn on diagnostics level #\r\n
-\t-D\t#\tTurn on --posix.odirect\r\n
 \t-f\t<filesystem>\trun ior against the named filesystem/\$USER\r\n
 \t-m\t#\tthe percentage of free memory to pre-allocate to avoid\r\n
 \t\t\tread cache problems\r\n
@@ -73,8 +72,7 @@ USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] \r\n
 \t-p\t#\tthe number of processes per Node\r\n
 \t-N\t#\tthe number of nodes that you want to run on.\r\n
 \t\tThis is a hard coded number.  The numprocs will be distributed\r\n
-\t\tacross this set of nodes\r\n
-\r\n
+\t\tacross this set of nodes.\r\n
 \t\tIf not specified, it will be numprocs / processes per node\r\n
 \t-s\tAssemble the requested runs as SBATCH scripts and place\r\n
 \t\tin the BATCH directory\r\n
@@ -206,6 +204,7 @@ srun_NODES="1"
 # in the script command line "-N"
 ####################
 setnodes="FALSE"
+processes_per_node=10
 
 ####################
 # The default is to ask for 1 minute of run time from srun
@@ -251,7 +250,7 @@ wantSBATCH="FALSE"
 # These are the getopt flags processed by iorunner.  They are hopefully
 # adequately understandable from the (-h) flag.
 ####################
-runner_optionargs="achvst:d:f:N:o:p:x:"
+runner_optionargs="chvsa:t:d:f:N:o:p:x:"
 
 while getopts ${runner_optionargs} name
 do
@@ -364,7 +363,7 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the
 # test number
 ####################
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # If there is no test number file, create it
@@ -385,7 +384,7 @@ echo ${testnumber} > ${TESTNUMBERFILE}
 ####################
 # Now we can release the lock
 ####################
-echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # retrieve the current test number and stuff it in a test string for
@@ -422,7 +421,7 @@ iormetadatafile=${ETCDIR}/${IOR_UPPER}.VERSION.info.txt
 iorbuilddate=$(sourcedate -t ${iorinstalldir})
 iorversion=$(strings ${IOR_EXEC} | egrep '^IOR-')
 
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 echo "IOR Version info" > ${iormetadatafile}
 echo ${iorversion} >> ${iormetadatafile}
@@ -476,9 +475,9 @@ then
 	errecho -e ${0##*/} ${LINENO} ${USAGE} >&2
 	exit 1
 fi
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 mount | grep ${fsbase} >> ${IOR_METADATAFILE}
-echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 
 ####################
 # If any additional parameters were passed in on the command line
@@ -632,10 +631,10 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		####################
 		# Instead of exiting we emit a default file here
 		####################
-		echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
+		echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
 		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
 		echo ${DEFAULT_STRING} >> ${procdefault_file}
-		echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+		echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
 	fi # if [ ! -r ${procdefault_file} ]
 
 	linesread=0
@@ -877,7 +876,8 @@ tee -a ${iortestname}"
 			####################
 			# Run the benchmark test
 			####################
-			${command_line}
+			echo ${command_line}
+			bash ${command_line}
 
 			if [ "wantCSV" = "TRUE" ]
 			then
