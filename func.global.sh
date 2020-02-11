@@ -63,12 +63,26 @@ then
 	{
 		lockcount=0
 		maxspins=10
-		while [ -f ${LOCKFILE} ]
+		sleeptime=1
+		OFV=${FUNC_VERBOSE}
+		FUNC_VERBOSE=1
+
+		if [ $# -eq 0 ]
+		then
+			lockfile=${LOCKFILE}
+		else
+			lockfile=$1
+			if [ $# -eq 2 ]
+			then
+				sleeptime=$2
+			fi
+		fi
+		while [ -f ${lockfile} ]
 		do
 			errecho ${FUNCNAME} ${LINENO} \
-				"Sleeping on llock acquisition for lock owned by"
+				"Sleeping on lock acquisition for lock owned by"
 			errecho ${FUNCNAME} ${LINENO} \
-				"$(ls -l ${LOCKFILE})"
+				"$(ls -l ${lockfile})"
 			((++lockcount))
 			if [ ${lockcount} -gt ${maxspins} ]
 			then
@@ -76,14 +90,22 @@ then
 					"Exceeded ${maxspins} spins waiting for lock, quitting"
 				exit 1
 			fi
-			sleep 1
+			sleep ${sleeptime}
 		done
-		touch ${LOCKFILE}
+		FUNC_VERBOSE=${OFV}
+		touch ${lockfile}
+
 	}
 	export -f func_getlock
 	func_releaselock()
 	{
-		rm -f ${LOCKFILE}
+		if [ $# -eq 0 ]
+		then
+			lockfile=${LOCKFILE}
+		else
+			lockfile=$1
+		fi
+		rm -f ${lockfile}
 	}
 	export -f func_releaselock
 
