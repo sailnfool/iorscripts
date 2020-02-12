@@ -11,9 +11,9 @@
 source func.global
 source func.errecho
 
-ior_filesystemlistprefix='ior.filesystems*'
-ior_runnerlistprefix='ior.runner*'
-ior_processlistprefix='ior.processlist*'
+ior_filesystemlistprefix='etc/ior.filesystems*'
+ior_runnerlistprefix='etc/ior.runner*'
+ior_processlistprefix='etc/ior.processlist*'
 
 ior_runnerlist="ior_runner -x mi25 -p10"
 ior_runnerlistfile=""

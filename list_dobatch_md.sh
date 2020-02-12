@@ -9,9 +9,9 @@
 source func.global
 source func.errecho
 
-md_filesystemlistprefix='md.filesystems*'
-md_runnerlistprefix='md.runner*'
-md_processlistprefix='md.processlist*'
+md_filesystemlistprefix='etc/md.filesystems*'
+md_runnerlistprefix='etc/md.runner*'
+md_processlistprefix='etc/md.processlist*'
 
 md_runnerlist="md_runner -x mi25 -p10"
 md_runnerlistfile=""
