@@ -9,9 +9,10 @@
 source func.global
 source func.errecho
 
-md_filesystemlistprefix='etc/md.filesystems*'
-md_runnerlistprefix='etc/md.runner*'
-md_processlistprefix='etc/md.processlist*'
+md_filesyslistprefix='etc/md.f.'
+md_runnerlistprefix='etc/md.r.'
+md_opt_prefix='etc/md.o.'
+md_processlistprefix='etc/md.p.'
 
 md_runnerlist="md_runner -x mi25 -p10"
 md_runnerlistfile=""
@@ -28,13 +29,16 @@ DEBUGNOEXECUTE=9
 USAGE="${0##*/} [-[hv]] -r <list?.txt> -f <list?.txt> -p <list?.txt>\r\n
 \t-h\t\tPrint this help information\r\n
 \t-v\t\tTurn on verbose mode (works for -h: ${0##*/} -v -h)\r\n
-\t-f\t<#>\tretrieves ${md_filesystemlistprefix}.list<#>.txt for\r\n
+\t-f\t<#>\tretrieves ${md_filesyslistprefix}<#>....txt for\r\n
 \t\t\ta list of the filesystems that will be tested.  These should\r\n
 \t\t\tall be mpi filesystems.\r\n
-\t-r\t<#>\tretrieves ${md_runnerlistprefix}.list<#>.txt for a\r\n
+\t-r\t<#>\tretrieves ${md_runnerlistprefix}<#>....txt for a\r\n
 \t\t\tlist of the iorrunner commands (with options) that will\r\n
 \t\t\tbe run as tests.\r\n
-\t-p\t<#>\tretrieves ${md_processlistprefix}.list<#>.txt for a\r\n
+\t-o\t<#>\tretrieves ${md_opt_prefix}<#>....txt for the\r\n
+\t\t\toptions sent to mdtest due to a problem of putting them\r\n
+\t\t\tinto runner\r\n
+\t-p\t<#>\tretrieves ${md_processlistprefix}<#>i....txt for a\r\n
 \t\t\tlist of the number of processes that will be requested\r\n
 \t\t\twhen running iorrunner.  Note that number of processes\r\n
 \t\t\tand -p <percentage> of nodes to processes.  Slightly\r\n
@@ -50,7 +54,7 @@ VERBOSE_USAGE="${0##*/} Make sure you see md_runner -h and -vh\r\n
 \t\tDefault filesystem list = ${md_filesystemlist}\r\n
 \t\tDefault process list = ${md_processlist}\r\n"
 
-list_optionargs="hvr:f:p:d:"
+list_optionargs="hvr:f:p:d:o:"
 
 while getopts ${list_optionargs} name
 do
@@ -74,16 +78,25 @@ do
 			;;
 		f)
 			num=${OPTARG}
-			md_filesystemlistfile="${md_filesystemlistprefix}.list${num}.txt"
+			md_filesystemlistfile="${md_filesyslistprefix}${num}*.txt"
 			if [ ! -r ${md_filesystemlistfile} ]
 			then
 				errecho ${0##*/} ${LINENO} "file ${md_filesystemlistfile} not found"
 				exit 1
 			fi
 			;;
+		o)
+			num=${OPTARG}
+			md_optionlistfile="${md_opt_prefix}${num}*.txt"
+			if [ ! -r ${md_optionlistfile} ]
+			then
+				errecho ${0##*/} ${LINENO} "file ${md_optionlistfile} not found"
+				exit 1
+			fi
+			;;
 		p)
 			num=${OPTARG}
-			md_processlistfile="${md_processlistprefix}.list${num}.txt"
+			md_processlistfile="${md_processlistprefix}${num}*.txt"
 			if [ ! -r ${md_processlistfile} ]
 			then
 				errecho ${0##*/} ${LINENO} "file ${md_processlistfile} not found"
@@ -92,7 +105,7 @@ do
 			;;
 		r)
 			num=${OPTARG}
-			md_runnerlistfile="${md_runnerlistprefix}.list${num}.txt"
+			md_runnerlistfile="${md_runnerlistprefix}${num}*.txt"
 			if [ ! -r ${md_runnerlistfile} ]
 			then
 				errecho ${0##*/} ${LINENO} "file ${md_runnerlistfile} not found"
@@ -175,11 +188,14 @@ then
 	do
 		for filesystem in ${md_filesystemlist}
 		do
-			echo "${command} -f ${filesystem} ${md_processlist}"
-			if [ $debug -lt ${DEBUGNOEXECUTE} ]
-			then
-				${command} -f ${filesystem} ${md_processlist}
-			fi
+			while read -r options
+			do
+				echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
+				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				then
+					${command} -f ${filesystem} -o "${options}" ${md_processlist}
+				fi
+			done < ${md_optionlistfile}
 		done
 	done < ${md_runnerlistfile}
 else

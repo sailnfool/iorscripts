@@ -1,0 +1,3 @@
+md_runner -d 6 -x mi25 -p 10 -o \"-i 3 -F -C -T -r -w 0 -p 15 --posix.odirect\"
+md_runner -d 6 -x mi25 -p 10 -o \"-i 3 -F -C -T -r -w 16MB -p 15 --posix.odirect\"
+md_runner -d 6 -x mi25 -p 10 -o \"-i 3 -F -C -T -r -w 32MB -p 15 --posix.odirect\"

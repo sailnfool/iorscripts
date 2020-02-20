@@ -167,6 +167,11 @@ runner_NUMARGS=1
 runner_debug=0
 
 ####################
+# To expedite testing, we have a special branch on Corona
+####################
+srun_bank="-A vasttest"
+
+####################
 # Specify the default parallel file system under test in case the user 
 # forgets to specify one.
 ####################
@@ -178,7 +183,8 @@ filesystem=/p/lustre3/
 ####################
 #mdopts="-b 2 -z 3 -I 10 -i 5"
 # variant opts from VAST
-default_options="-i 2 -I 256 -z 1 -b 64 -L -u -F"
+#default_options="-i 2 -I 256 -z 1 -b 64 -L -u -F"
+default_options="-i 3 -F -C -T -r -w 0 -p 15 --posix.odirect"
 new_options=""
 add_options=""
 
@@ -749,10 +755,20 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	dirlock=${filesystem}/${USER}/md.lock
 	echo $(func_getlock ${dirlock} 30) | sed '/^$/d' | tee -a ${LOCKERRS}
 	dirhead=${filesystem}/$USER/md.seq
+	dirhead2=${filesystem}/${USER}/md.seq.$$
 	if [ -d ${dirhead} ]
 	then
-			dircnt="$(find ${dirhead} -type d -print | wc -l)"
-			filecnt="$(find ${dirhead} -type f -print | wc -l)"
+
+		####################
+		# move the directory to a new name so we can perform the 
+		# remove operation as a background process and allow the
+		# main operation to continue.  This may leave you in a
+		# temporary "overquota" situation when the dead directory
+		# can take 24+ hours to remove.
+		####################
+		mv ${dirhead} ${dirhead2}
+			dircnt="$(find ${dirhead2} -type d -print | wc -l)"
+			filecnt="$(find ${dirhead2} -type f -print | wc -l)"
 		if [ $dircnt -ge 1 ]
 		then
 			if [ $filecnt -gt 0 ]
@@ -760,14 +776,19 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 				errecho ${0##*/} ${LINENO} \
 			"A previous run must have aborted without cleanup"
 				errecho ${0##*/} ${LINENO} \
-			"$(find ${dirhead} -type d -print | wc -l) directories left over"
+			"$(find ${dirhead2} -type d -print | wc -l) directories left over"
 				errecho ${0##*/} ${LINENO} \
-			"$(find ${dirhead} -type f -print | wc -l) files left over"
+			"$(find ${dirhead2} -type f -print | wc -l) files left over"
 				errecho ${0##*/} ${LINENO} "Cleaning up"
 				echo ${0##*/} ${LINENO} "Cleaning up" | tee -a ${mdtestname}
 			fi
 		fi
-		time rm -rf ${dirhead} 2>&1 | tee -a ${mdtestname}
+		####################
+		# This is where we make the file removal a background process
+		# Someday this should be improved to use mpifileutils drm
+		# to remove a tree of files and directories
+		####################
+		time rm -rf ${dirhead2} 2>&1 | tee -a ${mdtestname} &
 	fi
 	echo $(func_releaselock ${dirlock}) | sed '/^$'/d | tee -a ${LOCKERRS}
 
@@ -785,7 +806,7 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	# echo out the name of the srun command that will be issued
 	####################
 	command_date_began=$(date)
-	command_line="srun ${partitionopt} -n ${numprocs} \
+	command_line="srun ${srun_bank} ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -t ${srun_time} \
 ${MD_EXEC} ${default_options} -d ${filesystem}/${USER}/md.seq 2>&1 | \
 tee -a ${mdtestname}"
@@ -799,6 +820,7 @@ tee -a ${mdtestname}"
 		echo "######## These Lines are for Slurm" >> ${sbatchfile}
 		echo "#SBATCH -N ${srun_Nodes}" >> ${sbatchfile}
 		echo "#SBATCH -n ${numprocs}" >> ${sbatchfile}
+		echo "#SBATCH ${srun_bank}" >> ${sbatchfile}
 		echo "#SBATCH -J ${teststring}" >> ${sbatchfile}
 		echo "#SBATCH -t ${srun_time}" >> ${sbatchfile}
 		if [ ! -z "${partitionopt}" ]

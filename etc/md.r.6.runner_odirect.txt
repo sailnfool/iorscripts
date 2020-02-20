@@ -1,0 +1,19 @@
+md_runner -x mi25 -d 9 -a "--posix.odirect" -p 3
+./mdtest -i 3 -n XXX -F -C -T -r -w 0 -p 15 -d /p/…
+
+./mdtest -b 1 -n XXX -D -C -r -d /p/… 
+
+The args are:
+- i is iterations
+- n XXX is number of files to create on each rank
+- F is file test only
+- C is create phase
+- T is stat phase
+- r is remove phase
+- w is number of bytes to write to each file (try 0, 16MB, 32MB)
+- p is seconds between iterations 
+- d is directory to write to
+
+- D is the directory only test
+- b is the branching factor
+

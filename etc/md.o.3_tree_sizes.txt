@@ -1,0 +1,4 @@
+-i 3 -F -C -T -r -w 0 -p 15 --posix.odirect
+-i 3 -F -C -T -r -w 16M -p 15 --posix.odirect
+-i 3 -F -C -T -r -w 32M -p 15 --posix.odirect
+-b 1 -D -C -r -d
