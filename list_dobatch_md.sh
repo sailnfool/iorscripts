@@ -9,23 +9,74 @@
 source func.global
 source func.errecho
 
-md_filesyslistprefix='${HOME}/tasks/scripts/etc/md.f.'
-md_runnerlistprefix='${HOME}/tasks/scripts/etc/md.r.'
-md_opt_prefix='${HOME}/tasks/scripts/etc/md.o.'
-md_processlistprefix='${HOME}/tasks/scripts/etc/md.p.'
+####################
+# Define a path to the local set of files that define the parameters
+# for running the benchmarks.  The files are organized into four
+# groups:
+#
+# f - files containing the list of file systems to be tested
+# p - files containing the list of number of processes to be tested
+# r - files containing the command line for the *_runner script,
+#     less option lists
+# o - the files containing the list of options for controlling the
+#     benchmarks
+#
+# The form of the files are syntactically:
+#
+# ior.x.[0-9]+*.txt
+# 
+# The intent is that after the prefix we have a descriptive name for
+# the content of the controlling files.
+####################
+localetc=${HOME}/tasks/scripts/etc
 
+####################
+# Define the four file prefixes
+####################
+md_filesyslistprefix='${localetc}/md.f.'
+md_runnerlistprefix='${localetc}/md.r.'
+md_opt_prefix='${localetc}/md.o.'
+md_processlistprefix='${localetc}/md.p.'
+
+####################
+# define the default command and clear the file name
+####################
 md_runnerlist="md_runner -x mi25 -p10"
 md_runnerlistfile=""
 
+####################
+# define the default file system and clear the file name
+####################
 md_filesystemlist="/p/lustre3"
 md_filesystemlistfile=""
 
+####################
+# define the default list of processes and clear the file name
+####################
 md_processlist=10
 md_processlistfile=""
 
+####################
+# define the default options and clear the file name
+####################
+md_optionlist="-i 5"
+md_optionlistfile=""
+
+####################
+# set the debug level to zero
+# Define the debug levels:
+#
+# DEBUGSETX - turn on set -x to debug
+# DEBUGNOEXECUTE - generate and display the command lines but don't
+#                  execute the benchmark
+####################
 debug=0
 DEBUGSETX=6
 DEBUGNOEXECUTE=9
+
+####################
+# Define the usage and Verbose usage
+####################
 USAGE="${0##*/} [-[hv]] -r <list?.txt> -f <list?.txt> -p <list?.txt>\r\n
 \t-h\t\tPrint this help information\r\n
 \t-v\t\tTurn on verbose mode (works for -h: ${0##*/} -v -h)\r\n
@@ -52,7 +103,8 @@ VERBOSE_USAGE="${0##*/} Make sure you see md_runner -h and -vh\r\n
 \r\n
 \t\tDefault runner list = ${md_runnerlist}\r\n
 \t\tDefault filesystem list = ${md_filesystemlist}\r\n
-\t\tDefault process list = ${md_processlist}\r\n"
+\t\tDefault process list = ${md_processlist}\r\n
+\t\tdefault option list = ${md_optionlist}\r\n"
 
 list_optionargs="hvr:f:p:d:o:"
 
@@ -79,8 +131,16 @@ do
 		f)
 			num=${OPTARG}
 			md_filesystemlistfile="${md_filesyslistprefix}${num}*.txt"
+			if [ $(ls ${md_filesystemlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
+				ls -l ${md_filesystemlistfile}
+				exit 1
+			fi
 			if [ ! -r ${md_filesystemlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${md_filesystemlistfile} not found"
 				exit 1
 			fi
@@ -88,8 +148,16 @@ do
 		o)
 			num=${OPTARG}
 			md_optionlistfile="${md_opt_prefix}${num}*.txt"
+			if [ $(ls ${md_optionlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-o ${num} is not unique"
+				ls -l ${md_optionlistfile}
+				exit 1
+			fi
 			if [ ! -r ${md_optionlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${md_optionlistfile} not found"
 				exit 1
 			fi
@@ -97,8 +165,16 @@ do
 		p)
 			num=${OPTARG}
 			md_processlistfile="${md_processlistprefix}${num}*.txt"
+			if [ $(ls ${md_processlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-p ${num} is not unique"
+				ls -l ${md_processlistfile}
+				exit 1
+			fi
 			if [ ! -r ${md_processlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${md_processlistfile} not found"
 				exit 1
 			fi
@@ -106,8 +182,16 @@ do
 		r)
 			num=${OPTARG}
 			md_runnerlistfile="${md_runnerlistprefix}${num}*.txt"
+			if [ $(ls ${md_runnerlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-r ${num} is not unique"
+				ls -l ${md_runnerlistfile}
+				exit 1
+			fi
 			if [ ! -r ${md_runnerlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${md_runnerlistfile} not found"
 				exit 1
 			fi
@@ -117,6 +201,7 @@ do
 			FUNC_VERBOSE=1
 			;;
 		\?)
+			FUNC_VERBOSE=1
 			errecho "${0##*/}" ${LINENO} "Invalid option: -${OPTARG}"
 			exit 1
 			;;
@@ -158,7 +243,7 @@ echo ${iorbatchnumber} > ${BATCHNUMBERFILE}
 echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 
 ####################
-# retrieve the current test number and stuff it in a test string for
+# retrieve the current batch number and stuff it in a test string for
 # identifying the results directory
 ####################
 mdbatchstring="${USER}-BATCH-MD-$(printf '%04d' ${iorbatchnumber})"
@@ -188,6 +273,31 @@ then
 	do
 		for filesystem in ${md_filesystemlist}
 		do
+			if [ ! -z ${md_optionlistfile} ]
+			then
+				while read -r options
+				do
+					echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
+					if [ $debug -lt ${DEBUGNOEXECUTE} ]
+					then
+						${command} -f ${filesystem} -o "${options}" ${md_processlist}
+					fi
+				done < ${md_optionlistfile}
+			else
+				echo "${command} -f ${filesystem} -o \"${md_optionlist}\" ${md_processlist}"
+				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				then
+					${command} -f ${filesystem} -o "${md_optionlist}" ${md_processlist}
+				fi
+			fi
+		done
+	done < ${md_runnerlistfile}
+else
+	command=${runnerlist}
+	for filesystem in ${md_filesystemlist}
+	do
+		if [ ! -z ${md_optionlistfile} ]
+		then
 			while read -r options
 			do
 				echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
@@ -196,16 +306,12 @@ then
 					${command} -f ${filesystem} -o "${options}" ${md_processlist}
 				fi
 			done < ${md_optionlistfile}
-		done
-	done < ${md_runnerlistfile}
-else
-	command=${runnerlist}
-	for filesystem in ${md_filesystemlist}
-	do
-		echo "${command} -f ${filesystem} ${md_processlist}"
-		if [ $debug -lt ${DEBUGNOEXECUTE} ]
-		then
-			${command} -f ${filesystem} ${md_processlist}
+		else
+			echo "${command} -f ${filesystem} -o \"${md_optionlist}\" ${md_processlist}"
+			if [ $debug -lt ${DEBUGNOEXECUTE} ]
+			then
+				${command} -f ${filesystem} -o "${md_optionlist}" ${md_processlist}
+			fi
 		fi
 	done
 fi

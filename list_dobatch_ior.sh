@@ -11,33 +11,86 @@
 source func.global
 source func.errecho
 
-ior_filesystemlistprefix='etc/ior.filesystems*'
-ior_runnerlistprefix='etc/ior.runner*'
-ior_processlistprefix='etc/ior.processlist*'
+####################
+# Define a path to the local set of files that define the parameters
+# for running the benchmarks.  The files are organized into four
+# groups:
+#
+# f - files containing the list of file systems to be tested
+# p - files containing the list of number of processes to be tested
+# r - files containing the command line for the *_runner script,
+#     less option lists
+# o - the files containing the list of options for controlling the
+#     benchmarks
+#
+# The form of the files are syntactically:
+#
+# ior.x.[0-9]+*.txt
+# 
+# The intent is that after the prefix we have a descriptive name for
+# the content of the controlling files.
+####################
+localetc=${HOME}/tasks/scripts/etc
 
+####################
+# Define the four file prefixes
+####################
+ior_filesystemlistprefix='${localetc}/ior.filesystems*'
+ior_runnerlistprefix='${localetc}/ior.runner*'
+ior_processlistprefix='${localetc}/ior.processlist*'
+
+####################
+# define the default command and clear the file name
+####################
 ior_runnerlist="ior_runner -x mi25 -p10"
 ior_runnerlistfile=""
 
+####################
+# define the default file system and clear the file name
+####################
 ior_filesystemlist="/p/lustre3"
 ior_filesystemlistfile=""
 
+####################
+# define the default list of processes and clear the file name
+####################
 ior_processlist=10
 ior_processlistfile=""
 
+####################
+# define the default options and clear the file name
+####################
+ior_optionlist="-i 5"
+ior_optionlistfile=""
+
+####################
+# set the debug level to zero
+# Define the debug levels:
+#
+# DEBUGSETX - turn on set -x to debug
+# DEBUGNOEXECUTE - generate and display the command lines but don't
+#                  execute the benchmark
+####################
 debug=0
 DEBUGSETX=6
 DEBUGNOEXECUTE=9
 
+####################
+# Define the usage and Verbose usage
+####################
 USAGE="${0##*/} [-[hv]] -r <list?.txt> -f <list?.txt> -p <list?.txt>\r\n
 \t-h\t\tPrint this help information\r\n
 \t-v\t\tTurn on verbose mode (works for -h: ${0##*/} -v -h)\r\n
-\t-f\t<#>\tretrieves ${ior_filesystemlistprefix}.list<#>.txt for\r\n
+\t-f\t<#>\tretrieves ${ior_filesystemlistprefix}<#>...txt for\r\n
 \t\t\ta list of the filesystems that will be tested.  These should\r\n
 \t\t\tall be mpi filesystems.\r\n
-\t-r\t<#>\tretrieves ${ior_runnerlistprefix}.list<#>.txt for a\r\n
+\t-r\t<#>\tretrieves ${ior_runnerlistprefix}<#>...txt for a\r\n
 \t\t\tlist of the iorrunner commands (with options) that will\r\n
 \t\t\tbe run as tests.\r\n
-\t-p\t<#>\tretrieves ${ior_processlistprefix}.list<#>.txt for a\r\n
+\t-o\t<#>\tretrieves ${ior_opt_prefix}<#>...txt for the\r\n
+\t\t\toptions sent to ior due to a problem of passing quoted\r\n
+\t\t\tparameter lists two levels in bash\r\n
+\t-p\t<#>\tretrieves ${ior_processlistprefix}<#>...txt for a\r\n
 \t\t\tlist of the number of processes that will be requested\r\n
 \t\t\twhen running iorrunner.  Note that number of processes\r\n
 \t\t\tand -p <percentage> of nodes to processes.  Slightly\r\n
@@ -51,7 +104,8 @@ VERBOSE_USAGE="${0##*/} Make sure you see ior_runner -h and -vh\r\n
 \r\n
 \t\tDefault runner list = ${ior_runnerlist}\r\n
 \t\tDefault filesystem list = ${ior_filesystemlist}\r\n
-\t\tDefault process list = ${ior_processlist}\r\n"
+\t\tDefault process list = ${ior_processlist}\r\n
+\t\tDefault option list = ${ior_optionlist}\r\n"
 
 list_optionargs="hvr:f:p:d:"
 
@@ -77,27 +131,68 @@ do
 			;;
 		f)
 			num=${OPTARG}
-			ior_filesystemlistfile="${ior_filesystemlistprefix}.list${num}.txt"
+			ior_filesystemlistfile="${ior_filesystemlistprefix}${num}*.txt"
+			if [ $(ls ${ior_filesystemlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
+				ls -l ${ior_filesystemlistfile}
+				exit 1
+			fi
 			if [ ! -r ${ior_filesystemlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${ior_filesystemlistfile} not found"
+				exit 1
+			fi
+			;;
+		o)
+			num=${OPTARG}
+			ior_optionlistfile="${md_opt_prefix}${num}*.txt"
+			if [ $(ls ${ior_optionlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
+				ls -l ${ior_optionlistfile}
+				exit 1
+			fi
+			if [ ! -r ${ior_optionlistfile} ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "file ${ior_optionlistfile} not found"
 				exit 1
 			fi
 			;;
 		p)
 			num=${OPTARG}
-			ior_processlistfile="${ior_processlistprefix}.list${num}.txt"
+			ior_processlistfile="${ior_processlistprefix}${num}*.txt"
+			if [ $(ls ${ior_processlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
+				ls -l ${ior_processlistfile}
+				exit 1
+			fi
 			if [ ! -r ${ior_processlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${ior_processlistfile} not found"
 				exit 1
 			fi
 			;;
 		r)
 			num=${OPTARG}
-			ior_runnerlistfile="${ior_runnerlistprefix}.list${num}.txt"
+			ior_runnerlistfile="${ior_runnerlistprefix}${num}*.txt"
+			if [ $(ls ${ior_runnerlistfile} | wc -l) -gt 1 ]
+			then
+				FUNC_VERBOSE=1
+				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
+				ls -l ${ior_runnerlistfile}
+				exit 1
+			fi
 			if [ ! -r ${ior_runnerlistfile} ]
 			then
+				FUNC_VERBOSE=1
 				errecho ${0##*/} ${LINENO} "file ${ior_runnerlistfile} not found"
 				exit 1
 			fi
@@ -107,6 +202,7 @@ do
 			FUNC_VERBOSE=1
 			;;
 		\?)
+			FUNC_VERBOSE=1
 			errecho "${0##*/}" ${LINENO} "Invalid option: -${OPTARG}"
 			exit 1
 			;;
@@ -174,10 +270,22 @@ then
 	do
 		for filesystem in ${ior_filesystemlist}
 		do
-			echo "${command} -f ${filesystem} ${ior_processlist}"
-			if [ $debug -lt ${DEBUGNOEXECUTE} ]
+			if [ ! -z ${ior_optionlistfile} ]
 			then
-				${command} -f ${filesystem} ${ior_processlist}
+				while read r options
+				do
+					echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
+					if [ $debug -lt ${DEBUGNOEXECUTE} ]
+					then
+						${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
+					fi
+				done < ${ior_optionlistfile}
+			else
+				echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
+				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				then
+					${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
+				fi
 			fi
 		done
 	done < ${ior_runnerlistfile}
@@ -185,10 +293,22 @@ else
 	command=${runnerlist}
 	for filesystem in ${ior_filesystemlist}
 	do
-		echo "${command} -f ${filesystem} ${ior_processlist}"
-		if [ $debug -lt ${DEBUGNOEXECUTE} ]
+		if [ ! -z ${ior_optionlistfile} ]
 		then
-			${command} -f ${filesystem} ${ior_processlist}
+			while read -r options
+			do
+				echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
+				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				then
+					${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
+				fi
+			done < ${ior_optionlistfile}
+		else
+			echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
+			if [ $debug -lt ${DEBUGNOEXECUTE} ]
+			then
+				${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
+			fi
 		fi
 	done
 fi
