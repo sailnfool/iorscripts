@@ -9,10 +9,10 @@
 source func.global
 source func.errecho
 
-md_filesyslistprefix='etc/md.f.'
-md_runnerlistprefix='etc/md.r.'
-md_opt_prefix='etc/md.o.'
-md_processlistprefix='etc/md.p.'
+md_filesyslistprefix='${HOME}/tasks/scripts/etc/md.f.'
+md_runnerlistprefix='${HOME}/tasks/scripts/etc/md.r.'
+md_opt_prefix='${HOME}/tasks/scripts/etc/md.o.'
+md_processlistprefix='${HOME}/tasks/scripts/etc/md.p.'
 
 md_runnerlist="md_runner -x mi25 -p10"
 md_runnerlistfile=""
