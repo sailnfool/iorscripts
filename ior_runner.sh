@@ -52,6 +52,7 @@ source func.insufficient
 source func.logger
 source func.arithmetic
 source func.hmsout
+source func.debug
 
 USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] \r\n
 \t\t-t <minutes> -x <partition> <#procs> ...\r\n
@@ -79,7 +80,7 @@ USAGE="${0##*/} [-hdDvc] [-f <filesystem>] [-m #] [-N #] \r\n
 \t-t\t#\tthe number of minutes of CPU time you want to request\r\n
 \t-x\t<partition>\tthe name of a partition (subset of nodes on\r\n
 \t\t\tan MPI machine) (srun/sbatch dependent)\r\n"
-VERBOSE_USAGE="\r\n${0##*/}: Debugging, time information and\r\n
+VERBOSE_USAGE="${0##*/} Debugging, time information and\r\n
 \t\tdefault information\r\n
 \t-d\t8\tTurns on the bash \"set -x\" flag.\r\n
 \t-d\t6\tRuns this script in testing mode to show what would run\r\n
@@ -173,7 +174,12 @@ runner_NUMARGS=1
 ####################
 # debug flag for this script.
 ####################
-runner_debug=0
+runner_debug=DEBUGOFF
+
+####################
+#To expedite testing, we have a special branch on Corona
+####################
+srun_bank="vasttest"
 
 ####################
 # Specify the default parallel file system under test in case the user 
@@ -182,7 +188,7 @@ runner_debug=0
 filesystem=/p/lustre3
 
 ####################
-# Standard options add with -a, override with -o
+# Default options add with -a, override with -o
 ####################
 default_options=" -b 16m -s 16 -F -C -e -i 5 -t 2m"
 new_options=""
@@ -215,6 +221,7 @@ srun_time=1
 # Turn on runner verbose mode to give more complete help
 ####################
 runner_verbose="FALSE"
+export FUNC_VERBOSE=0
 
 ####################
 # This is the first experimental directive option flag.  If we set
@@ -223,11 +230,6 @@ runner_verbose="FALSE"
 # human readable mode.
 ####################
 wantCSV="FALSE"
-
-####################
-# Default is to NOT use ODIRECT mode
-####################
-wantODIRECT="FALSE"
 
 ####################
 # Added an -x command line option to specify an alternate partition
@@ -256,19 +258,25 @@ while getopts ${runner_optionargs} name
 do
 	case $name in
 		a)
-			add_opts="${OPTARG}"
+			add_options="${OPTARG}"
 			;;
 		c)
 			wantCSV="TRUE"
 			;;
 		d)
+      if [[ ! "${OPTARG}" =~ -?[0-9]+ ]]
+      then
+        errecho "${0##*/}" ${LINENO} \
+          "You must specify a numeric argument for -d"
+        exit 1
+      fi
 			FUNC_VERBOSE=${OPTARG} # see func.errecho
 			runner_debug=${OPTARG}
-			if [ ${runner_debug} -gt 8 ]
+			if [ ${runner_debug} -ge DEBUGSETX ]
 			then
 				set -x
 			fi
-			if [ ${runner_debug} -ge 6 ]
+			if [ ${runner_debug} -ge DEBUGNOEXECUTE ]
 			then
 				runner_testing="TRUE"
 			fi
@@ -277,19 +285,19 @@ do
 			filesystem=${OPTARG}
 			;;
     h)
-			echo -en ${USAGE}
+			echo -en "${USAGE}"
 			if [ "${runner_verbose}" = "TRUE" ]
 			then
-				echo -en ${VERBOSE_USAGE}
+				echo -en "${VERBOSE_USAGE}"
 			fi
 			exit 0
 			;;
 		N)
 			if [[ ! "${OPTARG}" =~ -?[0-9]+ ]]
 			then
-				errecho ${0##*/} ${LINENO} \
+				errecho "${0##*/}" ${LINENO} \
 					"You must specify a numeric argument for -N"
-				echo -en ${USAGE}
+				echo -en "${USAGE}"
 				exit 1
 			fi
 			srun_NODES=${OPTARG}
@@ -304,9 +312,9 @@ do
 		p)
 			if [[ ! "${OPTARG}" =~ -?[0-9]+ ]]
 			then
-				errecho ${0##*/} ${LINENO} \
+				errecho "${0##*/}" ${LINENO} \
 					"You must specify a numeric argument for -p"
-				echo -en ${USAGE}
+				echo -en "${USAGE}"
 				exit 1
 			fi
 			processes_per_node=${OPTARG}
@@ -325,8 +333,8 @@ do
 			partitionname="${OPTARG}"
 			;;
 		\?)
-			errecho "-e" ${0##*/} ${LINENO} "invalid option: -$OPTARG" >&2
-			errecho "-e" ${0##*/} ${LINENO} ${USAGE} >&2
+			errecho "-e" "${0##*/}" ${LINENO} "invalid option: -$OPTARG" >&2
+			errecho "-e" "${0##*/}" ${LINENO} "${USAGE}" >&2
 			exit 1
 			;;
 	esac
@@ -341,11 +349,11 @@ shift $((OPTIND-1))
 ####################
 if [ $# -lt ${runner_NUMARGS} ]
 then
-	errecho "-e" ${0##*/} ${LINENO} \
+	errecho "-e" "${0##*/}" ${LINENO} \
     "You must provide at least one argument that describes\r\n
 the number of processes you want to run for testing\r\n"
-	errecho "-e" ${0##*/} ${LINENO} ${USAGE}
-	insufficient ${0##*/} ${LINENO} ${runner_NUMARGS} $@
+	errecho "-e" "${0##*/}" ${LINENO} "${USAGE}"
+	insufficient "${0##*/}" ${LINENO} ${runner_NUMARGS} $@
 	exit 1
 fi
 
@@ -363,28 +371,28 @@ starttime=$(date -u "+%Y%m%d.%H%M%S")
 # Create a lock file so that two different scripts don't update the
 # test number
 ####################
-echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
+func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
 
 ####################
 # If there is no test number file, create it
 ####################
-if [ ! -r ${TESTNUMBERFILE} ]
+if [ ! -r "${TESTNUMBERFILE}" ]
 then
-	echo 0 > ${TESTNUMBERFILE} 
+	echo 0 > "${TESTNUMBERFILE}"
 fi
 
-testnumber=$(cat ${TESTNUMBERFILE})
+testnumber=$(cat "${TESTNUMBERFILE}")
 
 ####################
 # bump the test number and stuff it back in the file.
 ####################
 ((++testnumber))>/dev/null
-echo ${testnumber} > ${TESTNUMBERFILE}
+echo "${testnumber}" > "${TESTNUMBERFILE}"
 
 ####################
 # Now we can release the lock
 ####################
-echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
+func_releaselock | sed '/^$/d' | tee -a "${LOCKERRS}"
 
 ####################
 # retrieve the current test number and stuff it in a test string for
@@ -409,7 +417,7 @@ batchstring=${batchstring:=""}
 ####################
 x="${TESTDIR}/${batchstring}/${starttime}_${teststring}"
 testresultdir="${x}"
-mkdir -p ${testresultdir}
+mkdir -p "${testresultdir}"
 
 ####################
 # Get the date that the executable was built and the
@@ -418,17 +426,21 @@ mkdir -p ${testresultdir}
 # VERSION_info.txt
 ####################
 iormetadatafile=${ETCDIR}/${IOR_UPPER}.VERSION.info.txt
-iorbuilddate=$(sourcedate -t ${iorinstalldir})
-iorversion=$(strings ${IOR_EXEC} | egrep '^IOR-')
+iorbuilddate=$(sourcedate -t "${iorinstalldir}")
+iorversion=$(strings "${IOR_EXEC}" | egrep '^IOR-')
 
-echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
+func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
 
-echo "IOR Version info" > ${iormetadatafile}
-echo ${iorversion} >> ${iormetadatafile}
-echo "" >> ${iormetadatafile}
-echo "IOR Build Date information" >> ${iormetadatafile}
-echo ${iorbuilddate} >> ${iormetadatafile}
-echo $(func_releaselock)
+rm -f "${iormetadatafile}"
+{
+  echo "IOR Version info" 
+  echo "${iorversion}"
+  echo "" 
+  echo "IOR Build Date information" 
+  echo "${iorbuilddate}"
+} >> "${iormetadatafile}"
+
+func_releaselock
 
 ####################
 #
@@ -446,16 +458,16 @@ echo $(func_releaselock)
 # partition in the -x option (if specified) exists, although there
 # is really no need to protect the user from themselves.
 ####################
-if [ $(which srun)>/dev/null ]
+if [ "$(which srun > /dev/null)" ]
 then
 	MaxNodes=$(scontrol show partition | \
 		sed -n -e '/MaxNodes/s/^[ ]*MaxNodes=\([^ 	]*\).*/\1/p' | tail -1)
 else
-	errecho ${0##*/} ${LINENO} \
+	errecho "${0##*/}" ${LINENO} \
     "Could not find srun on this machine" >&2
-	errecho ${0##*/} ${LINENO} \
+	errecho "${0##*/}" ${LINENO} \
     "Are you sure you are on the right machine?" >&2
-	errecho ${0##*/} ${LINENO} \
+	errecho "${0##*/}" ${LINENO} \
     "If you need to run mpirun. fix the code here" >&2
 	exit 1
 fi
@@ -468,28 +480,28 @@ fsbase=${filesystem##*/}
 ####################
 # sanity check to make sure that the file sytem exists
 ####################
-if [ ! -d ${filesystem} ]
+if [ ! -d "${filesystem}" ]
 then
-	errecho ${0##*/} ${LINENO} \
+	errecho "${0##*/}" ${LINENO} \
     "Could not detect filesystem (-f) = ${filesystem}" >&2
-	errecho -e ${0##*/} ${LINENO} ${USAGE} >&2
+	errecho -e "${0##*/}" ${LINENO} "${USAGE}" >&2
 	exit 1
 fi
-echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
-mount | grep ${fsbase} >> ${IOR_METADATAFILE}
-echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
+func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
+mount | grep "${fsbase}" >> "${IOR_METADATAFILE}"
+func_releaselock | sed '/^$/d' | tee -a "${LOCKERRS}"
 
 ####################
 # If any additional parameters were passed in on the command line
 # to be sent straight to ior, add them to the default_optionsstring here
 ####################
-if [ ! -z "${add_opts}" ]
+if [ ! -z "${add_options}" ]
 then
-	default_options="${default_options} ${add_opts}"
+	default_options="${default_options} ${add_options}"
 fi
-if [ ! -z "${new_opts}" ]
+if [ ! -z "${new_options}" ]
 then
-	default_options="${new_opts}"
+	default_options="${new_options}"
 fi
 
 ####################
@@ -515,11 +527,11 @@ if [ "${wantCSV}" = "TRUE" ]
 then
 	iordirectivefile=${filesystem}/${USER}/directive
 	csvresults="${filesystem}/${USER}/results.csv"
-	echo "summaryFormat=CSV" > ${iordirectivefile}
-	echo "summaryFile=${csvresults}" >> ${iordirectivefile}
+	echo "summaryFormat=CSV" > "${iordirectivefile}"
+	echo "summaryFile=${csvresults}" >> "${iordirectivefile}"
 	default_options="${default_options} -f ${iordirectivefile}"
 fi
-#errecho ${0##*/} ${LINENO} "default_options=${default_options}" >&2
+#errecho "${0##*/}" ${LINENO} "default_options=${default_options}" >&2
 
 ####################
 # Build the list of the processes that will be used
@@ -530,7 +542,7 @@ for i in $*
 do
 	testcounts="${testcounts} $i"
 done
-#errecho ${0##*/} ${LINENO} "testcounts=${testcounts}" >&2
+#errecho "${0##*/}" ${LINENO} "testcounts=${testcounts}" >&2
 ####################
 # for each of the counts of the number of processes that will be
 # used for testing, generate an 'srun' or 'mpirun' to run the ior
@@ -539,7 +551,7 @@ done
 ####################
 for numprocs in ${testcounts}
 do
-	if [ ${numprocs} -eq 0 ]
+	if [ "${numprocs}" -eq 0 ]
 	then
 		####################
 		# Nothing to do
@@ -571,8 +583,8 @@ do
 	then
 		srun_NODES=1
 	fi
-	#	errecho ${0##*/} ${LINENO} "srun_NODES=${srun_NODES}" >&2
-	#	errecho ${0##*/} ${LINENO} "MaxNodes=${MaxNodes}" >&2
+	#	errecho "${0##*/}" ${LINENO} "srun_NODES=${srun_NODES}" >&2
+	#	errecho "${0##*/}" ${LINENO} "MaxNodes=${MaxNodes}" >&2
 
 	####################
 	# Check to see if the user requested number of Nodes is greater than
@@ -580,7 +592,7 @@ do
 	####################
 	if [ ${srun_NODES} -gt ${MaxNodes} ]
 	then
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
 			"Exceeded Maximum available nodes,\r\n
 Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		exit 1
@@ -620,21 +632,21 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 
 	procdefault_file=${ETCDIR}/${fileprefix}.${PROCDEFAULT_SUFFIX}
 
-	if [ ! -r ${procdefault_file} ]
+	if [ ! -r "${procdefault_file}" ]
 	then
-		errecho ${0##*/} ${LINENO} "File Not Found ${procdefault_file}"
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} "File Not Found ${procdefault_file}"
+		errecho "${0##*/}" ${LINENO} \
 			"Need Default Band (e.g. 100), default MS per Process and..."
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
 			"the amount by which to increase guess times after failures"
 
 		####################
 		# Instead of exiting we emit a default file here
 		####################
-		echo $(func_getlock) | sed '/^$/d' | tee -a ${LOCKERRS}
-		echo ${PROCDEFAULT_TITLES} > ${procdefault_file}
-		echo ${DEFAULT_STRING} >> ${procdefault_file}
-		echo $(func_releaselock) | sed '/^$/d' | tee -a ${LOCKERRS}
+		func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
+		echo "${PROCDEFAULT_TITLES}" > "${procdefault_file}"
+		echo "${DEFAULT_STRING}" >> "${procdefault_file}"
+		func_releaselock | sed '/^$/d' | tee -a "${LOCKERRS}"
 	fi # if [ ! -r ${procdefault_file} ]
 
 	linesread=0
@@ -653,7 +665,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 			export FAIL_PERCENT=${percent}
 		fi
 		((++linesread))
-	done < ${procdefault_file}
+	done < "${procdefault_file}"
 	IFS=$OLDIFS
 
 	####################
@@ -661,7 +673,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	####################
 	if [ ${linesread} -lt 2 ]
 	then
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
 			"Could not read ${procdefault_file}"
 		exit 1
 	fi
@@ -680,14 +692,14 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	procrate_file=${ETCDIR}/${fileprefix}.${PROCRATE_SUFFIX}
 	changed_procrate_file="FALSE"
 
-	if [ ! -r ${procrate_file} ]
+	if [ ! -r "${procrate_file}" ]
 	then
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
 			"File Not Found ${procrate_file}"
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
 			"Creating a two-line default table"
-		echo ${PROCRATE_TITLES} > ${procrate_file}
-		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" >> ${procrate_file}
+		echo "${PROCRATE_TITLES}" > "${procrate_file}"
+		echo "100|${DEFAULT_MS}|${DEFAULT_MS}|GUESS|0" >> "${procrate_file}"
 		changed_procrate_file="FALSE"
 	fi
 
@@ -705,16 +717,16 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 			gobs[$band]=$gob
 			obhi_ms[$band]=$obhigh
 		fi
-	done < ${procrate_file}
+	done < "${procrate_file}"
 	IFS=$OLDIFS
 		
 	####################
 	# If we did not get any data out of the procrate file, quit
 	# We need the title line and one line of data
 	####################
-	if [ ${linesread} -lt 2 ]
+	if [ "${linesread}" -lt 2 ]
 	then
-		errecho ${0##*/} ${LINENO} 
+		errecho "${0##*/}" ${LINENO} 
 			"Could not read ${procrate_file}"
 		exit 1
 	else
@@ -727,13 +739,13 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	# table.  We simply roundup the number of processes to the next
 	# higher multiple of PROC_BAND
 	####################
-	band=$(func_introundup ${numprocs} ${PROC_BAND})
+	band=$(func_introundup "${numprocs}" "${PROC_BAND}" )
 	
 	####################
 	# If there is no existing table entry for this band, then we 
 	# will create a new GUESS row using the DEFAULT values
 	####################
-	if [ ! ${hi_ms[${band}]+_} ]
+	if [ ! "${hi_ms[${band}]+_}" ]
 	then
 		lo_ms[${band}]=${DEFAULT_MS}
 		hi_ms[${band}]=${DEFAULT_MS}
@@ -742,7 +754,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 		changed_procrate_file="TRUE"
 	fi
 
-	errecho ${0##*/} ${LINENO} "hi_ms[$band]=${hi_ms[$band]}"
+	errecho "${0##*/}" ${LINENO} "hi_ms[$band]=${hi_ms[$band]}"
 
 	((milliseconds=hi_ms[$band]*numprocs))
 	((srun_time_seconds=milliseconds/one_ms_second))
@@ -754,34 +766,36 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
 	####################
 	if [ ${srun_time_seconds} -le 0 ]
 	then
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
       "Invalid run time: srun_time_seconds=${srun_time_seconds}" >&2
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
       "hi_ms[$band]=${hi_ms[$band]}" >&2
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
       "numprocs=${numprocs}" >&2
-		errecho ${0##*/} ${LINENO} \
+		errecho "${0##*/}" ${LINENO} \
       "milliseconds=${milliseconds}" >&2
 		exit 1
 	fi
 
 	####################
-	# Check if the number of seconds is more than 24 hours. If so,
+	# Check if the number of seconds is more than 16 hours. If so,
   # we need to modify the time parameter to the srun/mpirun
 	####################
-	((dayseconds=24*60*60))
-	if [ "${srun_time_seconds}" -ge ${dayseconds} ]
+  maxhours=16
+	((max_srun_time=maxhours*60*60))
+	if [ "${srun_time_seconds}" -ge ${max_srun_time} ]
 	then
-		errecho ${0##*/} ${LINENO} \
-      "Projected run time exceeds 24 hours, quitting" >&2
-		exit 1
+		errecho "${0##*/}" ${LINENO} \
+      "Projected run time exceeds ${maxhours} hours, adjusting..." >&2
+    ((srun_time_seconds=max_srun_time-1))
 	fi
 
 	####################
 	# Note that this converts the number of seconds into HMS values.
 	####################
 	new_time=$(hmsout "${srun_time_seconds}" "seconds")
-	errecho ${0##*/} ${LINENO} \
+  FUNC_VERBOSE=1
+	errecho "${0##*/}" ${LINENO} \
     "Adjusting time request to ${new_time}" >&2
 	srun_time=${new_time}
 
@@ -817,41 +831,47 @@ x="${testresultdir}/ior.${fsbase}_${testnamesuffix}.txt"
 	####################
 	command_date_began=$(date -u)
 	command_line="srun ${partitionopt} -n ${numprocs} \
--N ${srun_NODES} -t ${srun_time} \
+-N ${srun_NODES} -A ${srun_bank}-t ${srun_time} \
 ${IOR_EXEC} ${default_options} -o ${filesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}"
 	echo "COMMAND|${command_date_began}|${command_line}" | \
-		tee -a ${TESTLOG}
+		tee -a "${TESTLOG}"
 
 
 	if [ "${wantSBATCH}" = "TRUE" ]
 	then
-		sbatchfile=${testresultdir}/sbatch_${teststring}.sh
-		echo "#!/bin/bash" > ${sbatchfile}
-		echo "######## These Lines are for Slurm" >> ${sbatchfile}
-		echo "#SBATCH -N ${srun_Nodes}" >> ${sbatchfile}
-		echo "#SBATCH -n ${numprocs}" >> ${sbatchfile}
-		echo "#SBATCH -J ${teststring}" >> ${sbatchfile}
-		echo "#SBATCH -t ${srun_time}" >> ${sbatchfile}
-		if [ ! -z "${partitionopt}" ]
-		then
-			echo "#SBATCH ${partitionopt}" >> ${sbatchfile}
-		fi
-		echo "#SBATCH -o /p/lustre3/${USER}/${teststring}.txt" >> \
-			${sbatchfile}
-		echo "#SBATCH -D /p/lustre3/${USER}" >> ${sbatchfile}
-		echo "#SBATCH --license=${fsbase}" >> ${sbatchfile}
-		echo "#SBATCH --mail-type=all" >> ${sbatchfile}
-		echo "command_date_began=\$(date -u)" >> ${sbatchfile}
 		batch_command="srun ${IOR_EXEC} ${default_options} 
 -o ${filesystem}/$USER/ior.seq 2>&1 | tee -a ${iortestname} "
-		echo "echo \"COMMAND|\${command_date_began}|${batch_command} | " \
-			"tee -a ${TESTLOG}" >> ${sbatchfile}
-		echo "${batch_command}" >> ${sbatchfile}
-		if [ "wantCSV" = "TRUE" ]
+		sbatchfile=${testresultdir}/sbatch_${teststring}.sh
+    rm -f "${sbatchfile}"
+    {
+		  echo "#!/bin/bash" 
+		  echo "######## These Lines are for Slurm" 
+		  echo "#SBATCH -N ${srun_NODES}" 
+		  echo "#SBATCH -n ${numprocs}" 
+		  echo "#SBATCH -J ${teststring}" 
+      echo "#SBATCH -A $srun_bank"
+		  echo "#SBATCH -t ${srun_time}" 
+    } >> "${sbatchfile}"
+
+		if [ ! -z "${partitionopt}" ]
+		then
+			echo "#SBATCH ${partitionopt}" >> "${sbatchfile}"
+		fi
+    {
+		  echo "#SBATCH -o /p/lustre3/${USER}/${teststring}.txt" 
+		  echo "#SBATCH -D /p/lustre3/${USER}" 
+		  echo "#SBATCH --license=${fsbase}" 
+		  echo "#SBATCH --mail-type=all" 
+		  echo "command_date_began=\$(date -u)" 
+		  echo -n "echo \"COMMAND|\${command_date_began}|${batch_command} | " 
+			echo "tee -a ${TESTLOG}" 
+		  echo "${batch_command}" 
+    } >> "${sbatchfile}"
+		if [ "${wantCSV}" = "TRUE" ]
 		then
 			echo "cp ${csvresults} ${testresultdir}/${saveresults}" >> \
-				${sbatchfile}
+				"${sbatchfile}"
 		fi
 	fi
 
@@ -865,9 +885,9 @@ tee -a ${iortestname}"
 		####################
 		# Log the START
 		####################
-		$(logger "START" "${IOR_UPPER}" "$$" "${batchstring}" \
+		logger "START" "${IOR_UPPER}" "$$" "${batchstring}" \
 "${testnumber}" "${fsbase}" "${date_began}" "${numprocs}" \
-"${srun_NODES}")
+"${srun_NODES}"
 
 		if [ ! "${wantSBATCH}" = "TRUE" ]
 		then
@@ -875,24 +895,24 @@ tee -a ${iortestname}"
 			####################
 			# Run the benchmark test
 			####################
-			echo ${command_line}
+			echo "${command_line}"
 			set -x
-			echo ${command_line} | bash
+			echo "${command_line}" | bash
 			set +x
 
-			if [ "wantCSV" = "TRUE" ]
+			if [ "${wantCSV}" = "TRUE" ]
 			then
-				if [ ! -r ${csvresults} ]
+				if [ ! -r "${csvresults}" ]
 				then
 					errecho "${0##*/}" ${LINENO} \
 						"No CSV file created at ${csvresults}"
 				else
 					saveresults="ior.${fsbase}_${testnamesuffix}.csv"
-					cp ${csvresults} ${testresultdir}/${saveresults}
+					cp "${csvresults}" "${testresultdir}/${saveresults}"
 				fi
 			fi
 
-			if [ $(grep "${SRUNKILLSTRING}" ${iortestname} | wc -l ) -eq 1 ]
+      if [[ $(grep -c "${SRUNKILLSTRING}" "${iortestname}" ) == "1" ]]
 			then
 				srun_status=1
 			else
@@ -915,10 +935,10 @@ tee -a ${iortestname}"
 				completion=FAIL
 				oldtime=${hi_ms[$band]}
 				((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
-				errecho ${0##*/} ${LINENO} \
+				errecho "${0##*/}" ${LINENO} \
 					"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 				echo "COMMAND_FAILE|${command_date_began}|${command_line}" | \
-					tee -a ${TESTLOG}
+					tee -a "${TESTLOG}"
 	
 				####################
 				# Following a failure we don't have true observed time. As
@@ -932,13 +952,13 @@ tee -a ${iortestname}"
 				####################
 				# Save the old file if we die in the middle
 				####################
-				cp ${procrate_file}  ${procrate_file}.old.txt
+				cp "${procrate_file}"  "${procrate_file}.old.txt"
 				
 				####################
 				# We remove the current file and write a new one dumped from
 				# the Associative array where we keep the data.
 				####################
-				rm ${procrate_file}
+				rm -f "${procrate_file}"
 				for band in "${!lo_ms[@]}"
 				do
 					if [ -z "${obhi_ms[$band]}" ]
@@ -947,11 +967,11 @@ tee -a ${iortestname}"
 					fi
 					echo  \
 				"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[${band}]}" \
-						>> ${PROCRATE_TMPFILE}
+						>> "${PROCRATE_TMPFILE}"
 				done
-				echo ${PROCRATE_TITLES} > ${procrate_file}
-				sort -u -n -t "|" ${PROCRATE_TMPFILE} > ${procrate_file}
-				rm -f ${PROCRATE_TMPFILE}
+				echo "${PROCRATE_TITLES}" > "${procrate_file}"
+				sort -u -n -t "|" "${PROCRATE_TMPFILE}" > "${procrate_file}"
+				rm -f "${PROCRATE_TMPFILE}"
 				changed_procrate_file="FALSE"
 
 			else # if [ $srun_status -ne 0 ]
@@ -967,25 +987,23 @@ tee -a ${iortestname}"
 			# Mark the completion and log it
 			####################
 			date_finished=$(date)
-			$(logger "FINISH" "${IOR_UPPER}" "$$" "${batchstring}" \
+			logger "FINISH" "${IOR_UPPER}" "$$" "${batchstring}" \
 	"${testnumber}" "${fsbase}" "${date_finished}" "${numprocs}" \
-	"${srun_NODES}" ${completion} )
+	"${srun_NODES}" ${completion}
 	
 			####################
 			# do date arithmetic to get the delta in HMS and seconds
 			####################
-	  	time_delta=$(date -d @$(( $(date -d "${date_finished}" +%s) - \
-	$(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
-	  	time_delta_seconds=$(date -d @$(( $(date -d \
-	"${date_finished}" +%s) - $(date -d "${date_began}" +%s) )) -u +'%s')
+	  	time_delta=$(date -d @$(( $(date -d "${date_finished}" +%s) - $(date -d "${date_began}" +%s) )) -u +'%H:%M:%S')
+	  	time_delta_seconds=$(date -d @$(( $(date -d "${date_finished}" +%s) - $(date -d "${date_began}" +%s) )) -u +'%s')
 	
 			####################
 			# Log the delta and the rate
 			####################
-			$(logger "DELTA" "${IOR_UPPER}" "$$" "${batchstring}" \
+			logger "DELTA" "${IOR_UPPER}" "$$" "${batchstring}" \
 	"${testnumber}" "${fsbase}" "${time_delta}" \
 	"${time_delta_seconds}" "${numprocs}" \
-	"${lo_ms[$band]}" "${hi_ms[$band]}" "${completion}" )
+	"${lo_ms[$band]}" "${hi_ms[$band]}" "${completion}"
 	
 	
 			####################
@@ -993,7 +1011,7 @@ tee -a ${iortestname}"
 			# We compute the number of milliseconds/process rounding up
 			####################
 			((new_ms=(time_delta_seconds*one_ms_second)/numprocs))
-			((new_ms+=((time_delta__seconds*one_ms_second)%numprocs>0)?1:0))
+			((new_ms+=((time_delta_seconds*one_ms_second)%numprocs>0)?1:0))
 	
 			####################
 			# if we have reached a new high for this band, update the high
@@ -1010,7 +1028,7 @@ tee -a ${iortestname}"
 				obhi_ms[$band]=${new_ms}
 				changed_procrate_file="TRUE"
 			fi
-			if [ ${new_ms} -gt ${hi_ms[$band]} ]
+			if [ "${new_ms}" -gt "${hi_ms[$band]}" ]
 			then
 				hi_ms[$band]=${new_ms}
 				gobs[$band]="OBSERVED"
@@ -1023,7 +1041,7 @@ tee -a ${iortestname}"
 				####################
 				if [ ${new_ms} -ne 0 ]
 				then
-					if [ ${new_ms} -lt ${lo_ms[$band]} ]
+					if [ "${new_ms}" -lt "${lo_ms[$band]}" ]
 					then
 						lo_ms[$band]=${new_ms}
 						gobs[$band]="OBSERVED"
@@ -1036,7 +1054,7 @@ tee -a ${iortestname}"
 			####################
 			if [ "${changed_procrate_file}" = "TRUE" ]
 			then
-				rm ${procrate_file}
+				rm -f "${procrate_file}"
 				for band in "${!lo_ms[@]}"
 				do
 					if [ -z "${obhi_ms[$band]}" ]
@@ -1045,20 +1063,20 @@ tee -a ${iortestname}"
 					fi
 					echo \
 				"${band}|${lo_ms[${band}]}|${hi_ms[${band}]}|${gobs[${band}]}|${obhi_ms[$band]}" \
-						>> ${PROCRATE_TMPFILE}
+						>> "${PROCRATE_TMPFILE}"
 				done
-				echo ${PROCRATE_TITLES} > ${procrate_file}
-				sort -u -n -t "|" ${PROCRATE_TMPFILE} >> ${procrate_file}
-				rm -f ${PROCRATE_TMPFILE}
+				echo "${PROCRATE_TITLES}" > "${procrate_file}"
+				sort -u -n -t "|" "${PROCRATE_TMPFILE}" >> "${procrate_file}"
+				rm -f "${PROCRATE_TMPFILE}"
 				changed_procrate_file="FALSE"
 			fi # if [ "${changed_procrate_file}" = "TRUE" ]
 			
 			####################
 			# Now we log the rate from this run
 			####################
-			$(logger "RATE" "${IOR_UPPER}" "$$" "${batchstring}" \
-				"${testnumber}" "${base}" "${srun_time}" "${numprocs}" \
-	``````"${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" )
+			logger "RATE" "${IOR_UPPER}" "$$" "${batchstring}" \
+				"${testnumber}" "${fsbase}" "${srun_time}" "${numprocs}" \
+        "${band}" "${new_ms}" "${lo_ms[$band]}" "${hi_ms[$band]}" 
 		fi # if [ ! "${wantSBATCH}" = "TRUE" ]
 	fi # if [ "${runner_testing}" = "FALSE" ]
 done # for numprocs in ${testcounts}
@@ -1067,13 +1085,13 @@ if [ "${wantSBATCH}" = "TRUE" ]
 then
 	if [ "${runner_testing}" = "FALSE" ]
 	then
-		for sbatch_script in ${testresultdir}/sbatch_*.sh
+		for sbatch_script in "${testresultdir}/sbatch_*.sh"
 		do
-			bash ${sbatch_script}
+			bash "${sbatch_script}"
 		done
 	fi
 fi
 
-rm -f ${procrate_file}.old.txt ${PROCRATE_TMPFILE}
+rm -f "${procrate_file}.old.txt" "${PROCRATE_TMPFILE}"
 exit 0
 # vim: set syntax=bash, ts=2, sw=2, lines=55, columns=120,colorcolumn=78

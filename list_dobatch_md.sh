@@ -8,6 +8,7 @@
 ########################################################################
 source func.global
 source func.errecho
+source func.debug
 
 ####################
 # Define a path to the local set of files that define the parameters
@@ -63,16 +64,9 @@ md_optionlist="-i 5"
 md_optionlistfile=""
 
 ####################
-# set the debug level to zero
-# Define the debug levels:
-#
-# DEBUGSETX - turn on set -x to debug
-# DEBUGNOEXECUTE - generate and display the command lines but don't
-#                  execute the benchmark
+# set the debug level to OFF
 ####################
-debug=0
-DEBUGSETX=6
-DEBUGNOEXECUTE=9
+debug=DEBUGOFF
 
 ####################
 # Define the usage and Verbose usage
