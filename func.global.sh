@@ -22,6 +22,7 @@ then
 	export MD_EXEC=${BINDIR}/mdtest
 	export MD_BASE=${MD_EXEC##*/}
 	export MD_UPPER=$(echo ${MD_BASE} | tr [:lower:] [:upper:])
+	export MD_DIR_PREFIX="md.seq"
 	export TESTDIR=${IOR_HOMEDIR}/testdir
 	export ETCDIR=${TESTDIR}/etc
 	export LOCKFILE=${ETCDIR}/lock

@@ -49,6 +49,7 @@ source func.insufficient
 source func.logger
 source func.arithmetic
 source func.hmsout
+source func.debug
 
 USAGE="${0##*/} [-hdv] [-f <filesystem>] [-N #] -t <time> -x <partition> <#procs> ...\r\n
 \t\trun the mdtest benchmark with default options\r\n
@@ -164,7 +165,7 @@ runner_NUMARGS=1
 ####################
 # debug flag for this script.
 ####################
-runner_debug=DEBUGOFF
+runner_debug=${DEBUGOFF}
 
 ####################
 # To expedite testing, we have a special branch on Corona
@@ -246,11 +247,11 @@ do
 		d)	# Debugging
 			FUNC_VERBOSE="${OPTARG}" # see func.errecho
 			runner_debug="${OPTARG}"
-			if [ "${runner_debug}" -ge DEBUGSETX ]
+			if [ "${runner_debug}" -ge "${DEBUGSETX}" ]
 			then
 				set -x
 			fi
-			if [ "${runner_debug}" -ge DEBUGNOEXECUTE ]
+			if [ "${runner_debug}" -ge "${DEBUGNOEXECUTE}" ]
 			then
 				runner_testing="TRUE"
 			fi
@@ -398,7 +399,7 @@ mkdir -p "${testresultdir}"
 # store this information in the testresultdirectory in a file called
 # VERSION_info.txt
 ####################
-iorbuilddate=$(sourcedate -t "${IOR_INSTALLDIR}" )
+iorbuilddate=$(sourcedate -t "${INSTALLDIR}" )
 
 func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
 echo "mdtest Build Date information" >> "${MD_METADATAFILE}"
@@ -421,7 +422,9 @@ func_releaselock | sed '/^$/d' | tee -a "${LOCKERRS}"
 # partition in the -x option (if specified) exists, although there
 # is really no need to protect the user from themselves.
 ####################
-if [ "$(which srun > /dev/null)" ]
+which srun > /dev/null
+found_srun=$?
+if [ "${found_srun}" -eq "0" ]
 then
 	MaxNodes=$(scontrol show partition | \
 		sed -n -e '/MaxNodes/s/^[ ]*MaxNodes=\([^ 	]*\).*/\1/p' | tail -1)
@@ -754,46 +757,12 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	####################
 	# Cleanup from prior runs (Specific recovery to mdtest)
 	####################
-	dirlock=${filesystem}/${USER}/md.lock
-	func_getlock "${dirlock}" 30 | sed '/^$/d' | tee -a "${LOCKERRS}"
-	dirhead=${filesystem}/$USER/md.seq
-	dirhead2=${filesystem}/${USER}/md.seq.$$
-	if [ -d "${dirhead}" ]
+	md_cleanup ${filesystem}
+	if [ $? -ne 0 ]
 	then
-
-		####################
-		# move the directory to a new name so we can perform the
-		# remove operation as a background process and allow the
-		# main operation to continue.  This may leave you in a
-		# temporary "overquota" situation when the dead directory
-		# can take 24+ hours to remove.
-		####################
-		mv "${dirhead}" "${dirhead2}"
-			dircnt="$(find \"${dirhead2}\" -type d -print | wc -l)"
-			filecnt="$(find \"${dirhead2}\" -type f -print | wc -l)"
-		if [ "${dircnt}" -ge 1 ]
-		then
-			if [ "${filecnt}" -gt 0 ]
-			then
-				errecho "${0##*/}" ${LINENO} \
-			"A previous run must have aborted without cleanup"
-				errecho "${0##*/}" ${LINENO} \
-			"$(find \"${dirhead2}\" -type d -print | wc -l) directories left over"
-				errecho "${0##*/}" ${LINENO} \
-			"$(find \"${dirhead2}\" -type f -print | wc -l) files left over"
-				errecho "${0##*/}" ${LINENO} "Cleaning up"
-				echo "${0##*/}" ${LINENO} "Cleaning up" | tee -a "${mdtestname}"
-			fi
-		fi
-		####################
-		# This is where we make the file removal a background process
-		# Someday this should be improved to use mpifileutils drm
-		# to remove a tree of files and directories
-		####################
-		time rm -rf "${dirhead2}" 2>&1 | tee -a "${mdtestname}" &
+		exit 1
 	fi
-	func_releaselock "${dirlock}"  | sed '/^$'/d | tee -a "${LOCKERRS}"
-
+	dirhead=${filesystem}/${USER}/md.seq.$$
 	####################
 	# Check to see if we want to run in a different partion.
 	####################
@@ -810,10 +779,10 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	command_date_began=$(date)
 	command_line="srun -A ${srun_bank} ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -t ${srun_time} \
-${MD_EXEC} ${default_options} -d ${filesystem}/${USER}/md.seq 2>&1 | \
+${MD_EXEC} ${default_options} -d ${dirhead} 2>&1 | \
 tee -a ${mdtestname}"
 	echo "COMMAND|${command_date_began}|${command_line}" | \
-		tee -a "${IOR_TESTLOG}"
+		tee -a "${TESTLOG}"
 
 	if [ "${wantSBATCH}" = "TRUE" ]
 	then
@@ -865,13 +834,11 @@ tee -a ${mdtestname}"
 		# Run the benchmark test
 		####################
 		echo "${command_line}"
-		set -x
 		echo "${command_line}" | bash
-		set +x
 
 #		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
 #-t "${srun_time}" \
-#"${MD_EXEC}" ${default_options} -d ${filesystem}/$USER/md.seq 2>&1 | \
+#"${MD_EXEC}" ${default_options} -d ${dirhead} 2>&1 | \
 #tee -a "${mdtestname}"
 
 if [[ $(grep -c "${SRUNKILLSTRING}" "${mdtestname}") == "1" ]]
@@ -900,7 +867,7 @@ if [[ $(grep -c "${SRUNKILLSTRING}" "${mdtestname}") == "1" ]]
 			errecho "${0##*/}" ${LINENO} \
 				"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
 			echo "COMMAND_FAILED|${command_date_began}|${command_line}" | \
-				tee -a "${IOR_TESTLOG}"
+				tee -a "${TESTLOG}"
 
 			####################
 			# Following a failure we don't have true observed time. As

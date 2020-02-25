@@ -10,6 +10,7 @@
 ########################################################################
 source func.global
 source func.errecho
+source func.debug
 
 ####################
 # Define a path to the local set of files that define the parameters
@@ -35,9 +36,10 @@ localetc=${HOME}/tasks/scripts/etc
 ####################
 # Define the four file prefixes
 ####################
-ior_filesystemlistprefix='${localetc}/ior.filesystems*'
-ior_runnerlistprefix='${localetc}/ior.runner*'
-ior_processlistprefix='${localetc}/ior.processlist*'
+ior_filesystemlistprefix="${localetc}/ior.f."
+ior_runnerlistprefix="${localetc}/ior.r."
+ior_processlistprefix="${localetc}/ior.p."
+ior_optionlistprefix="${localetc}/ior.o."
 
 ####################
 # define the default command and clear the file name
@@ -64,16 +66,9 @@ ior_optionlist="-i 5"
 ior_optionlistfile=""
 
 ####################
-# set the debug level to zero
-# Define the debug levels:
-#
-# DEBUGSETX - turn on set -x to debug
-# DEBUGNOEXECUTE - generate and display the command lines but don't
-#                  execute the benchmark
+# set the debug level to DEBUGOFF
 ####################
-debug=0
-DEBUGSETX=6
-DEBUGNOEXECUTE=9
+debug=${DEBUGOFF}
 
 ####################
 # Define the usage and Verbose usage
@@ -275,14 +270,14 @@ then
 				while read r options
 				do
 					echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
-					if [ $debug -lt ${DEBUGNOEXECUTE} ]
+					if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 					then
 						${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
 					fi
 				done < ${ior_optionlistfile}
 			else
 				echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
-				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
 					${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
 				fi
@@ -298,14 +293,14 @@ else
 			while read -r options
 			do
 				echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
-				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
 					${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
 				fi
 			done < ${ior_optionlistfile}
 		else
 			echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
-			if [ $debug -lt ${DEBUGNOEXECUTE} ]
+			if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 			then
 				${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
 			fi

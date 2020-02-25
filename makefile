@@ -7,7 +7,8 @@
 INSTALL = extract_ior \
 					extract_md \
 					ior_runner dobatch_ior list_dobatch_ior \
-					md_runner dobatch_md list_dobatch_md\
+					md_runner dobatch_md list_dobatch_md \
+					md_cleanup md_count_and_remove \
 					func.logger func.global func.debug
 
 .PHONY: all clean uninstall

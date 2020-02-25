@@ -34,10 +34,10 @@ localetc=${HOME}/tasks/scripts/etc
 ####################
 # Define the four file prefixes
 ####################
-md_filesyslistprefix='${localetc}/md.f.'
-md_runnerlistprefix='${localetc}/md.r.'
-md_opt_prefix='${localetc}/md.o.'
-md_processlistprefix='${localetc}/md.p.'
+md_filesyslistprefix="${localetc}/md.f."
+md_runnerlistprefix="${localetc}/md.r."
+md_opt_prefix="${localetc}/md.o."
+md_processlistprefix="${localetc}/md.p."
 
 ####################
 # define the default command and clear the file name
@@ -66,7 +66,7 @@ md_optionlistfile=""
 ####################
 # set the debug level to OFF
 ####################
-debug=DEBUGOFF
+debug=${DEBUGOFF}
 
 ####################
 # Define the usage and Verbose usage
@@ -240,9 +240,9 @@ echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 # retrieve the current batch number and stuff it in a test string for
 # identifying the results directory
 ####################
-mdbatchstring="${USER}-BATCH-MD-$(printf '%04d' ${iorbatchnumber})"
+batchstring="${USER}-BATCH-MD-$(printf '%04d' ${iorbatchnumber})"
 
-export mdbatchstring
+export batchstring
 
 
 if [ ! -z "${md_processlistfile}" ]
@@ -272,14 +272,14 @@ then
 				while read -r options
 				do
 					echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
-					if [ $debug -lt ${DEBUGNOEXECUTE} ]
+					if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 					then
 						${command} -f ${filesystem} -o "${options}" ${md_processlist}
 					fi
 				done < ${md_optionlistfile}
 			else
 				echo "${command} -f ${filesystem} -o \"${md_optionlist}\" ${md_processlist}"
-				if [ $debug -lt ${DEBUGNOEXECUTE} ]
+				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
 					${command} -f ${filesystem} -o "${md_optionlist}" ${md_processlist}
 				fi
@@ -287,7 +287,7 @@ then
 		done
 	done < ${md_runnerlistfile}
 else
-	command=${runnerlist}
+	command=${md_runnerlist}
 	for filesystem in ${md_filesystemlist}
 	do
 		if [ ! -z ${md_optionlistfile} ]
