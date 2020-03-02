@@ -272,11 +272,11 @@ do
       fi
 			FUNC_VERBOSE=${OPTARG} # see func.errecho
 			runner_debug=${OPTARG}
-			if [ ${runner_debug} -ge DEBUGSETX ]
+			if [ ${runner_debug} -ge ${DEBUGSETX} ]
 			then
 				set -x
 			fi
-			if [ ${runner_debug} -ge DEBUGNOEXECUTE ]
+			if [ ${runner_debug} -ge ${DEBUGNOEXECUTE} ]
 			then
 				runner_testing="TRUE"
 			fi
@@ -458,7 +458,10 @@ func_releaselock
 # partition in the -x option (if specified) exists, although there
 # is really no need to protect the user from themselves.
 ####################
-if [ "$(which srun > /dev/null)" ]
+which srun > /dev/null
+found_srun=$?
+
+if [ "${found_srun}" -eq "0" ]
 then
 	MaxNodes=$(scontrol show partition | \
 		sed -n -e '/MaxNodes/s/^[ ]*MaxNodes=\([^ 	]*\).*/\1/p' | tail -1)
@@ -804,8 +807,7 @@ Requested ${srun_NODES}, Max=${MaxNodes}" >&2
   # requested test time into the name of the test file where results
   # are stored.
 	####################
-x="${testnamesuffix}_N_${NODESTRING}_p_${PROCSTRING}_t_${srun_time}"
-	testnamesuffix="${x}"
+	testnamesuffix="_N_${NODESTRING}_p_${PROCSTRING}_t_${srun_time}"
 
 	####################
 	# The test file is placed in the result directory.  The name of
@@ -831,7 +833,7 @@ x="${testresultdir}/ior.${fsbase}_${testnamesuffix}.txt"
 	####################
 	command_date_began=$(date -u)
 	command_line="srun ${partitionopt} -n ${numprocs} \
--N ${srun_NODES} -A ${srun_bank}-t ${srun_time} \
+-N ${srun_NODES} -A ${srun_bank} -t ${srun_time} \
 ${IOR_EXEC} ${default_options} -o ${filesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}"
 	echo "COMMAND|${command_date_began}|${command_line}" | \
@@ -896,9 +898,7 @@ tee -a ${iortestname}"
 			# Run the benchmark test
 			####################
 			echo "${command_line}"
-			set -x
 			echo "${command_line}" | bash
-			set +x
 
 			if [ "${wantCSV}" = "TRUE" ]
 			then
@@ -937,7 +937,7 @@ tee -a ${iortestname}"
 				((hi_ms[$band]+=(${hi_ms[$band]}*${FAIL_PERCENT})/100))
 				errecho "${0##*/}" ${LINENO} \
 					"FAILURE: oldtime=${oldtime}, newtime=${hi_ms[$band]}"
-				echo "COMMAND_FAILE|${command_date_began}|${command_line}" | \
+				echo "COMMAND_FAILED|${command_date_began}|${command_line}" | \
 					tee -a "${TESTLOG}"
 	
 				####################
