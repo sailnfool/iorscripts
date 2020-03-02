@@ -39,7 +39,7 @@ localetc=${HOME}/tasks/scripts/etc
 ior_filesystemlistprefix="${localetc}/ior.f."
 ior_runnerlistprefix="${localetc}/ior.r."
 ior_processlistprefix="${localetc}/ior.p."
-ior_optionlistprefix="${localetc}/ior.o."
+ior_opt_prefix="${localetc}/ior.o."
 
 ####################
 # define the default command and clear the file name
@@ -102,8 +102,12 @@ VERBOSE_USAGE="${0##*/} Make sure you see ior_runner -h and -vh\r\n
 \t\tDefault process list = ${ior_processlist}\r\n
 \t\tDefault option list = ${ior_optionlist}\r\n"
 
-list_optionargs="hvr:f:p:d:"
+list_optionargs="hvd:f:o:p:r:"
 
+filestring=0
+optstring=0
+procstring=0
+runstring=0
 while getopts ${list_optionargs} name
 do
 	case $name in
@@ -140,10 +144,11 @@ do
 				errecho ${0##*/} ${LINENO} "file ${ior_filesystemlistfile} not found"
 				exit 1
 			fi
+			filestring=${num}
 			;;
 		o)
 			num=${OPTARG}
-			ior_optionlistfile="${md_opt_prefix}${num}*.txt"
+			ior_optionlistfile="${ior_opt_prefix}${num}*.txt"
 			if [ $(ls ${ior_optionlistfile} | wc -l) -gt 1 ]
 			then
 				FUNC_VERBOSE=1
@@ -157,6 +162,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${ior_optionlistfile} not found"
 				exit 1
 			fi
+			optstring=${num}
 			;;
 		p)
 			num=${OPTARG}
@@ -174,6 +180,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${ior_processlistfile} not found"
 				exit 1
 			fi
+			procstring=${NUM}
 			;;
 		r)
 			num=${OPTARG}
@@ -191,6 +198,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${ior_runnerlistfile} not found"
 				exit 1
 			fi
+			runstring=${NUM}
 			;;
 		v)
 			runner_verbose="TRUE"
@@ -225,13 +233,13 @@ fi
 ####################
 # retrieve the number in the file.
 ####################
-iorbatchnumber=$(cat ${BATCHNUMBERFILE})
+batchnumber=$(cat ${BATCHNUMBERFILE})
 
 ####################
 # bump the test number and stuff it back in the file.
 ####################
-((++iorbatchnumber))
-echo ${iorbatchnumber} > ${BATCHNUMBERFILE}
+((++batchnumber))
+echo ${batchnumber} > ${BATCHNUMBERFILE}
 
 echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 
@@ -239,9 +247,11 @@ echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 # retrieve the current batch number and stuff it in a test string for
 # identifying the results directory
 ####################
-iorbatchstring="${USER}-BATCH-IOR-$(printf '%04d' ${iorbatchnumber})"
-
-export iorbatchstring
+batchstring="${USER}-BATCH-IOR-$(printf '%04d' ${batchnumber})"
+batchstring="${batchstring}_f${filestring}o${optstring}p${procstring}r${runstring}"
+export batchstring
+batchdir=${TESTDIR}/${batchstring}
+mkdir -p ${batchdir}
 
 if [ ! -z "${ior_processlistfile}" ]
 then
@@ -250,6 +260,9 @@ then
 	do
 		ior_processlist="${ior_processlist} ${procnum}"
 	done
+	cp "${ior_processlistfile}" "${batchdir}"
+else
+	echo "${ior_processlist}" > "${batchdir}/ior.p.0_default.txt"
 fi
 if [ ! -z "${ior_filesystemlistfile}" ]
 then
@@ -258,6 +271,21 @@ then
 	do
 		ior_filesystemlist="${ior_filesystemlist} ${filesystem}"
 	done
+	cp "${ior_filesystemlistfile}" "${batchdir}"
+else
+	echo "${ior_filesystemlist}" > "${batchdir}/ior.f.0_default.txt"
+fi
+if [ ! -z "${ior_runnerlistfile}" ]
+then
+	cp "${ior_runnerlistfile}" "${batchdir}"
+else
+	echo "${runnerlist}" > "${batchdir}/ior.r.0_default.txt"
+fi
+if [ ! -z "${ior_optionlistfile}" ]
+then
+	cp "${ior_optionlistfile}" "${batchdir}"
+else
+	echo "${ior_optionlist}" > "${batchdir}/ior.o.0_default.txt"
 fi
 if [ ! -z "${ior_runnerlistfile}" ]
 then
@@ -267,19 +295,19 @@ then
 		do
 			if [ ! -z ${ior_optionlistfile} ]
 			then
-				while read r options
+				while read -r options
 				do
-					echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
+					echo "${command} -f ${filesystem} -o ${options} ${ior_processlist}"
 					if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 					then
-						${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
+						${command} -f ${filesystem} -o "${options}" ${ior_processlist}
 					fi
 				done < ${ior_optionlistfile}
 			else
-				echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
+				echo "${command} -f ${filesystem} -o ${ior_optionlist} ${ior_processlist}"
 				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
-					${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
+					${command} -f ${filesystem} -o "${ior_optionlist}" ${ior_processlist}
 				fi
 			fi
 		done
@@ -292,18 +320,19 @@ else
 		then
 			while read -r options
 			do
-				echo "${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}"
+				echo "${command} -f ${filesystem} -o ${options} ${ior_processlist}"
 				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
-					${command} -f ${filesystem} -o \"${options}\" ${ior_processlist}
+					${command} -f ${filesystem} -o "${options}" ${ior_processlist}
 				fi
 			done < ${ior_optionlistfile}
 		else
-			echo "${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}"
+			echo "${command} -f ${filesystem} -o ${ior_optionlist} ${ior_processlist}"
 			if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 			then
-				${command} -f ${filesystem} -o \"${ior_optionlist}\" ${ior_processlist}
+				${command} -f ${filesystem} -o "${ior_optionlist}" ${ior_processlist}
 			fi
 		fi
 	done
 fi
+grep "${batchstring}" "${TESTLOG}" > "${batchdir}/testlog.txt"

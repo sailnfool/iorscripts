@@ -102,6 +102,10 @@ VERBOSE_USAGE="${0##*/} Make sure you see md_runner -h and -vh\r\n
 
 list_optionargs="hvr:f:p:d:o:"
 
+filestring=0
+optstring=0
+procstring=0
+runstring=0
 while getopts ${list_optionargs} name
 do
 	case $name in
@@ -138,6 +142,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${md_filesystemlistfile} not found"
 				exit 1
 			fi
+			filestring=${num}
 			;;
 		o)
 			num=${OPTARG}
@@ -155,6 +160,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${md_optionlistfile} not found"
 				exit 1
 			fi
+			optstring=${num}
 			;;
 		p)
 			num=${OPTARG}
@@ -172,6 +178,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${md_processlistfile} not found"
 				exit 1
 			fi
+			procstring=${num}
 			;;
 		r)
 			num=${OPTARG}
@@ -189,6 +196,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${md_runnerlistfile} not found"
 				exit 1
 			fi
+			runstring=${num}
 			;;
 		v)
 			runner_verbose="TRUE"
@@ -223,13 +231,13 @@ fi
 ####################
 # retrieve the number in the file.
 ####################
-iorbatchnumber=$(cat ${BATCHNUMBERFILE})
+batchnumber=$(cat ${BATCHNUMBERFILE})
 
 ####################
 # bump the test number and stuff it back in the file.
 ####################
-((++iorbatchnumber))
-echo ${iorbatchnumber} > ${BATCHNUMBERFILE}
+((++batchnumber))
+echo ${batchnumber} > ${BATCHNUMBERFILE}
 
 ####################
 # Now we can release the lock 
@@ -240,10 +248,11 @@ echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
 # retrieve the current batch number and stuff it in a test string for
 # identifying the results directory
 ####################
-batchstring="${USER}-BATCH-MD-$(printf '%04d' ${iorbatchnumber})"
-
+batchstring="${USER}-BATCH-MD-$(printf '%04d' ${batchnumber})"
+batchstring="${batchstring}_f${filestring}o${optstring}p${procstring}r${runstring}"
 export batchstring
-
+batchdir=${TESTDIR}/${batchstring}
+mkdir -p ${batchdir}
 
 if [ ! -z "${md_processlistfile}" ]
 then
@@ -252,6 +261,9 @@ then
 	do
 		md_processlist="${md_processlist} ${procnum}"
 	done
+	cp ${md_processlistfile} ${batchdir}
+else
+	echo "${md_processlist}" > "${batchdir}/md.p.0_default.txt"
 fi
 if [ ! -z "${md_filesystemlistfile}" ]
 then
@@ -260,6 +272,21 @@ then
 	do
 		md_filesystemlist="${md_filesystemlist} ${filesystem}"
 	done
+	cp "${md_filesystemlistfile}" "${batchdir}"
+else
+	echo "${md_filesystemlist}" > "${batchdir}/md.f.0_default.txt"
+fi
+if [ ! -z "${md_runnerlistfile}" ]
+then
+	cp "${md_runnerlistfile}" "${batchdir}"
+else
+	echo "${runnerlist}" > "${batchdir}/md.r.0_default.txt"
+fi
+if [ ! -z "${md_optionlistfile}" ]
+then
+	cp "${md_optionlistfile}" "${batchdir}"
+else
+	echo "${md_optionlist}" > "${batchdir}/md.o.0_default.txt"
 fi
 if [ ! -z "${md_runnerlistfile}" ]
 then
@@ -309,3 +336,4 @@ else
 		fi
 	done
 fi
+grep "${batchstring}" "${TESTLOG}" > "${batchdir}/testlog.txt"
