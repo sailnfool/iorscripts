@@ -16,7 +16,7 @@ then
 	export IOR_HOMEDIR=$HOME/tasks/ior
 	export INSTALLDIR=${IOR_HOMEDIR}/install.ior
 	export BINDIR=${INSTALLDIR}/bin
-	export IOR_EXEC=${IOR_BINDIR}/ior
+	export IOR_EXEC=${BINDIR}/ior
 	export IOR_BASE=${IOR_EXEC##*/}
 	export IOR_UPPER=$(echo $IOR_BASE | tr [:lower:] [:upper:])
 	export MD_EXEC=${BINDIR}/mdtest
