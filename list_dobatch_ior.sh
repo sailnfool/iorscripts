@@ -173,14 +173,16 @@ do
 				errecho ${0##*/} ${LINENO} "-f ${num} is not unique"
 				ls -l ${ior_processlistfile}
 				exit 1
+			else
+				processlistfile=${ior_processlistfile}
 			fi
-			if [ ! -r ${ior_processlistfile} ]
+			if [ ! -r ${processlistfile} ]
 			then
 				FUNC_VERBOSE=1
-				errecho ${0##*/} ${LINENO} "file ${ior_processlistfile} not found"
+				errecho ${0##*/} ${LINENO} "file ${processlistfile} not found"
 				exit 1
 			fi
-			procstring=${NUM}
+			procstring=${num}
 			;;
 		r)
 			num=${OPTARG}
@@ -198,7 +200,7 @@ do
 				errecho ${0##*/} ${LINENO} "file ${ior_runnerlistfile} not found"
 				exit 1
 			fi
-			runstring=${NUM}
+			runstring=${num}
 			;;
 		v)
 			runner_verbose="TRUE"
@@ -253,14 +255,14 @@ export batchstring
 batchdir=${TESTDIR}/${batchstring}
 mkdir -p ${batchdir}
 
-if [ ! -z "${ior_processlistfile}" ]
+if [ ! -z "${processlistfile}" ]
 then
 	ior_processlist=""
-	for procnum in $(cat ${ior_processlistfile})
+	for procnum in $(cat ${processlistfile})
 	do
 		ior_processlist="${ior_processlist} ${procnum}"
 	done
-	cp "${ior_processlistfile}" "${batchdir}"
+	cp ${processlistfile} "${batchdir}"
 else
 	echo "${ior_processlist}" > "${batchdir}/ior.p.0_default.txt"
 fi
@@ -271,19 +273,19 @@ then
 	do
 		ior_filesystemlist="${ior_filesystemlist} ${filesystem}"
 	done
-	cp "${ior_filesystemlistfile}" "${batchdir}"
+	cp ${ior_filesystemlistfile} "${batchdir}"
 else
 	echo "${ior_filesystemlist}" > "${batchdir}/ior.f.0_default.txt"
 fi
 if [ ! -z "${ior_runnerlistfile}" ]
 then
-	cp "${ior_runnerlistfile}" "${batchdir}"
+	cp ${ior_runnerlistfile} "${batchdir}"
 else
 	echo "${runnerlist}" > "${batchdir}/ior.r.0_default.txt"
 fi
 if [ ! -z "${ior_optionlistfile}" ]
 then
-	cp "${ior_optionlistfile}" "${batchdir}"
+	cp ${ior_optionlistfile} "${batchdir}"
 else
 	echo "${ior_optionlist}" > "${batchdir}/ior.o.0_default.txt"
 fi
@@ -336,3 +338,5 @@ else
 	done
 fi
 grep "${batchstring}" "${TESTLOG}" > "${batchdir}/testlog.txt"
+cd ${batchdir}
+do_extract

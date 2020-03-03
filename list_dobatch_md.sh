@@ -64,7 +64,7 @@ md_optionlist="-i 5"
 md_optionlistfile=""
 
 ####################
-# set the debug level to OFF
+# set the debug level to DEBUGOFF
 ####################
 debug=${DEBUGOFF}
 
@@ -100,7 +100,7 @@ VERBOSE_USAGE="${0##*/} Make sure you see md_runner -h and -vh\r\n
 \t\tDefault process list = ${md_processlist}\r\n
 \t\tdefault option list = ${md_optionlist}\r\n"
 
-list_optionargs="hvr:f:p:d:o:"
+list_optionargs="hvd:f:o:p:r:"
 
 filestring=0
 optstring=0
@@ -171,11 +171,13 @@ do
 				errecho ${0##*/} ${LINENO} "-p ${num} is not unique"
 				ls -l ${md_processlistfile}
 				exit 1
+			else
+				processlistfile=${md_processlistfile}
 			fi
-			if [ ! -r ${md_processlistfile} ]
+			if [ ! -r ${processlistfile} ]
 			then
 				FUNC_VERBOSE=1
-				errecho ${0##*/} ${LINENO} "file ${md_processlistfile} not found"
+				errecho ${0##*/} ${LINENO} "file ${processlistfile} not found"
 				exit 1
 			fi
 			procstring=${num}
@@ -254,14 +256,14 @@ export batchstring
 batchdir=${TESTDIR}/${batchstring}
 mkdir -p ${batchdir}
 
-if [ ! -z "${md_processlistfile}" ]
+if [ ! -z "${processlistfile}" ]
 then
 	md_processlist=""
-	for procnum in $(cat ${md_processlistfile})
+	for procnum in $(cat ${processlistfile})
 	do
 		md_processlist="${md_processlist} ${procnum}"
 	done
-	cp ${md_processlistfile} ${batchdir}
+	cp ${processlistfile} ${batchdir}
 else
 	echo "${md_processlist}" > "${batchdir}/md.p.0_default.txt"
 fi
@@ -272,19 +274,19 @@ then
 	do
 		md_filesystemlist="${md_filesystemlist} ${filesystem}"
 	done
-	cp "${md_filesystemlistfile}" "${batchdir}"
+	cp ${md_filesystemlistfile} "${batchdir}"
 else
 	echo "${md_filesystemlist}" > "${batchdir}/md.f.0_default.txt"
 fi
 if [ ! -z "${md_runnerlistfile}" ]
 then
-	cp "${md_runnerlistfile}" "${batchdir}"
+	cp ${md_runnerlistfile} "${batchdir}"
 else
 	echo "${runnerlist}" > "${batchdir}/md.r.0_default.txt"
 fi
 if [ ! -z "${md_optionlistfile}" ]
 then
-	cp "${md_optionlistfile}" "${batchdir}"
+	cp ${md_optionlistfile} "${batchdir}"
 else
 	echo "${md_optionlist}" > "${batchdir}/md.o.0_default.txt"
 fi
@@ -337,3 +339,5 @@ else
 	done
 fi
 grep "${batchstring}" "${TESTLOG}" > "${batchdir}/testlog.txt"
+cd ${batchdir}
+do_extract
