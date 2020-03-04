@@ -341,3 +341,4 @@ fi
 grep "${batchstring}" "${TESTLOG}" > "${batchdir}/testlog.txt"
 cd ${batchdir}
 do_extract
+grep FAIL testlog.txt
