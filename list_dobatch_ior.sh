@@ -216,34 +216,7 @@ done
 shift $((OPTIND-1))
 
 mkdir -p ${TESTDIR} ${ETCDIR}
-
-####################
-# Create a lock file so that two different scripts don't update
-# the test number
-####################
-echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
-
-####################
-# if it does not exist, initialize it with a zero value
-####################
-
-if [ ! -r ${BATCHNUMBERFILE} ]
-then
-	echo 0 > ${BATCHNUMBERFILE}
-fi
-
-####################
-# retrieve the number in the file.
-####################
-batchnumber=$(cat ${BATCHNUMBERFILE})
-
-####################
-# bump the test number and stuff it back in the file.
-####################
-((++batchnumber))
-echo ${batchnumber} > ${BATCHNUMBERFILE}
-
-echo $(func_releaselock) | sed '/^$/d' >> ${LOCKERRS}
+batchnumber=$(func_getbatchnumber)
 
 ####################
 # retrieve the current batch number and stuff it in a test string for

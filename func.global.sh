@@ -14,6 +14,7 @@ then
 	source func.errecho
 
 	export IOR_HOMEDIR=$HOME/tasks/ior
+	export HOME_RESULTS=$HOME/.bench
 	export INSTALLDIR=${IOR_HOMEDIR}/install.ior
 	export BINDIR=${INSTALLDIR}/bin
 	export IOR_EXEC=${BINDIR}/ior
@@ -23,9 +24,9 @@ then
 	export MD_BASE=${MD_EXEC##*/}
 	export MD_UPPER=$(echo ${MD_BASE} | tr [:lower:] [:upper:])
 	export MD_DIR_PREFIX="md.seq"
-	export TESTDIR=${IOR_HOMEDIR}/testdir
+	export TESTDIR=${$HOME_RESULTS}/ior/testdir
 	export ETCDIR=${TESTDIR}/etc
-	export LOCKFILE=${ETCDIR}/lock
+	export LOCKFILE=${HOME_RESULTS}/lock
 	export PROCRATE_SUFFIX=procrate.txt
 	export PROCDEFAULT_SUFFIX=default.txt
 	export PROCDEFAULT_TITLES="BAND|Default Hi Milliseconds Guess|Percentage Bump on Failure"
@@ -46,8 +47,8 @@ then
 	####################
 	# updating the following requires locking
 	####################
-	export TESTNUMBERFILE=${ETCDIR}/TESTNUMBER
-	export BATCHNUMBERFILE=${ETCDIR}/BATCHNUMBER
+	export TESTNUMBERFILE=${HOME_RESULTS}/TESTNUMBER
+	export BATCHNUMBERFILE=${HOME_RESULTS}/BATCHNUMBER
 	export IOR_METADATAFILE=${ETCDIR}/${IOR_UPPER}.VERSION.info.txt
 	export MD_METADATAFILE=${ETCDIR}/${MD_UPPER}.VERSION.info.txt
 	####################
@@ -109,6 +110,34 @@ then
 		rm -f ${lockfile}
 	}
 	export -f func_releaselock
+	func_getbatchnumber()
+	{
+		func_getlock ${LOCKFILENUMBERS}
+		if [ ! -r ${BATCHNUMBERFILE} ]
+		then
+			echo 0 > ${BATCHNUMBERFILE}
+		fi
+		batchnumber=$(cat ${BATCHNUMBERFILE})
+		((++batchnumber))
+		echo ${batchnumber} > ${BATCHNUMBERFILE}
+		func_releaslock ${LOCKFILENUMBERS}
+		echo ${batchnumber}
+	}
+	export -f func_getbatchnumber
+	func_getlistnumber()
+	{
+		func_getlock ${LOCKFILENUMBERS}
+		if [ ! -r ${TESTNUMBERFILE} ]
+		then
+			echo 0 > ${TESTNUMBERFILE}
+		fi
+		listnumber=$(cat ${TESTNUMBERFILE})
+		((++listnumber))
+		echo ${listnumber} > ${TESTNUMBERFILE}
+		func_releaslock ${LOCKFILENUMBERS}
+		echo ${listnumber}
+	}
+	export -f func_getlistnumber
 
 	mkdir -p ${TESTDIR} ${ETCDIR}
 	echo $(func_getlock) | sed '/^$/d' >> ${LOCKERRS}
