@@ -420,6 +420,17 @@ testresultdir="${x}"
 mkdir -p "${testresultdir}"
 
 ####################
+# get the basename of the filesystem under test
+####################
+fsbase=${filesystem##*/}
+if [[ "${fsbase}" =~ lustre[1-3] ]]
+then
+	BIN_IOR=${LUSTRE_IOR_EXEC}
+else
+	BIN_IOR=${IOR_EXEC}
+fi
+
+####################
 # Get the date that the executable was built and the
 # version string embedded in the binary
 # store this information in the testresultdirectory in a file called
@@ -427,7 +438,7 @@ mkdir -p "${testresultdir}"
 ####################
 iormetadatafile=${ETCDIR}/${IOR_UPPER}.VERSION.info.txt
 iorbuilddate=$(sourcedate -t "${iorinstalldir}")
-iorversion=$(strings "${IOR_EXEC}" | egrep '^IOR-')
+iorversion=$(strings "${BIN_IOR}" | egrep '^IOR-')
 
 func_getlock | sed '/^$/d' | tee -a "${LOCKERRS}"
 
@@ -474,11 +485,6 @@ else
     "If you need to run mpirun. fix the code here" >&2
 	exit 1
 fi
-
-####################
-# get the basename of the filesystem under test
-####################
-fsbase=${filesystem##*/}
 
 ####################
 # sanity check to make sure that the file sytem exists
@@ -834,7 +840,7 @@ x="${testresultdir}/ior.${fsbase}_${testnamesuffix}.txt"
 	command_date_began=$(date -u)
 	command_line="srun ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -A ${srun_bank} -t ${srun_time} \
-${IOR_EXEC} ${default_options} -o ${filesystem}/$USER/ior.seq 2>&1 | \
+${BIN_IOR} ${default_options} -o ${filesystem}/$USER/ior.seq 2>&1 | \
 tee -a ${iortestname}"
 	echo "COMMAND|${command_date_began}|${command_line}" | \
 		tee -a "${TESTLOG}"
@@ -842,7 +848,7 @@ tee -a ${iortestname}"
 
 	if [ "${wantSBATCH}" = "TRUE" ]
 	then
-		batch_command="srun ${IOR_EXEC} ${default_options} 
+		batch_command="srun ${BIN_IOR} ${default_options} 
 -o ${filesystem}/$USER/ior.seq 2>&1 | tee -a ${iortestname} "
 		sbatchfile=${testresultdir}/sbatch_${teststring}.sh
     rm -f "${sbatchfile}"

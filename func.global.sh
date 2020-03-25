@@ -24,7 +24,10 @@ then
 	export MD_BASE=${MD_EXEC##*/}
 	export MD_UPPER=$(echo ${MD_BASE} | tr [:lower:] [:upper:])
 	export MD_DIR_PREFIX="md.seq"
-	export TESTDIR=${$HOME_RESULTS}/ior/testdir
+	export LUSTREBINDIR=${IOR_HOMEDIR}/bin
+	export LUSTRE_IOR_EXEC=${LUSTREBINDIR}/ior
+	export LUSTRE_MD_EXEC=${LUSTREBINDIR}/mdtest
+	export TESTDIR=${HOME_RESULTS}/ior/testdir
 	export ETCDIR=${TESTDIR}/etc
 	export LOCKFILE=${HOME_RESULTS}/lock
 	export PROCRATE_SUFFIX=procrate.txt
@@ -120,7 +123,7 @@ then
 		batchnumber=$(cat ${BATCHNUMBERFILE})
 		((++batchnumber))
 		echo ${batchnumber} > ${BATCHNUMBERFILE}
-		func_releaslock ${LOCKFILENUMBERS}
+		func_releaselock ${LOCKFILENUMBERS}
 		echo ${batchnumber}
 	}
 	export -f func_getbatchnumber
@@ -134,7 +137,7 @@ then
 		listnumber=$(cat ${TESTNUMBERFILE})
 		((++listnumber))
 		echo ${listnumber} > ${TESTNUMBERFILE}
-		func_releaslock ${LOCKFILENUMBERS}
+		func_releaselock ${LOCKFILENUMBERS}
 		echo ${listnumber}
 	}
 	export -f func_getlistnumber

@@ -17,6 +17,7 @@ then
 else
 	benchtype=$(echo ${basedir} | sed -n "s/^.*BATCH-\([A-Z][A-Z]*\)-.*$/\1/p")
 fi
+echo ${0##*/} "Beginning extraction of ${benchtype} result files."
 case ${benchtype} in
 	IOR)
 		prefix="ior"
@@ -33,3 +34,4 @@ case ${benchtype} in
 		;;
 esac
 echo ${extract} $(find . -name "${prefix}*.txt" -print) | bash
+echo ${0##*/} "Finished extraction of ${benchtype} result files."

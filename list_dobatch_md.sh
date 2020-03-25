@@ -274,14 +274,14 @@ then
 			then
 				while read -r options
 				do
-					echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
+					echo "${command} -f ${filesystem} -o ${options} ${md_processlist}"
 					if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 					then
 						${command} -f ${filesystem} -o "${options}" ${md_processlist}
 					fi
 				done < ${md_optionlistfile}
 			else
-				echo "${command} -f ${filesystem} -o \"${md_optionlist}\" ${md_processlist}"
+				echo "${command} -f ${filesystem} -o ${md_optionlist} ${md_processlist}"
 				if [ "${debug}" -lt "${DEBUGNOEXECUTE}" ]
 				then
 					${command} -f ${filesystem} -o "${md_optionlist}" ${md_processlist}
@@ -297,14 +297,14 @@ else
 		then
 			while read -r options
 			do
-				echo "${command} -f ${filesystem} -o \"${options}\" ${md_processlist}"
+				echo "${command} -f ${filesystem} -o ${options} ${md_processlist}"
 				if [ $debug -lt ${DEBUGNOEXECUTE} ]
 				then
 					${command} -f ${filesystem} -o "${options}" ${md_processlist}
 				fi
 			done < ${md_optionlistfile}
 		else
-			echo "${command} -f ${filesystem} -o \"${md_optionlist}\" ${md_processlist}"
+			echo "${command} -f ${filesystem} -o ${md_optionlist} ${md_processlist}"
 			if [ $debug -lt ${DEBUGNOEXECUTE} ]
 			then
 				${command} -f ${filesystem} -o "${md_optionlist}" ${md_processlist}

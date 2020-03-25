@@ -53,6 +53,12 @@ whereami=$(pwd)
 parentdirectory="${filesystem}/${USER}"
 cd "${parentdirectory}"
 dirlist="$(ls -d ${MD_DIR_PREFIX}.*)"
+if [ $? -ne 0 ]
+then
+	errecho ${0##*/} ${LINENO} \
+		"Nothing to clean up"
+	exit 0
+fi
 dircount="$(ls -d ${MD_DIR_PREFIX}.* | wc -l)"
 rmcount=0
 if [ "${dircount}" -gt "0" ]
@@ -67,7 +73,8 @@ then
 			# There are no running owners of this directory, queue it for
 			# removal
 			####################
-			echo "Launching md_count_and_remove ${filesystem} ${onedir}"
+			errecho ${0##*/} ${LINENO} \
+				"Launching md_count_and_remove ${filesystem} ${onedir}"
 			md_count_and_remove ${filesystem} ${onedir} &
 		fi
 	done

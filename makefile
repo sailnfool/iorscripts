@@ -8,7 +8,10 @@ INSTALL = extract_ior extract_md do_extract \
 					ior_runner dobatch_ior list_dobatch_ior \
 					md_runner dobatch_md list_dobatch_md \
 					md_cleanup md_count_and_remove \
-					func.logger func.global func.debug
+					func.logger func.global func.debug \
+					test_spack_long test_spack_short \
+					test_spack_core test_spack_multiple \
+					func.global2 test_spack_single
 
 .PHONY: all clean uninstall
 all: $(INSTALL)

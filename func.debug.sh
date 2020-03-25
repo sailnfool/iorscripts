@@ -16,6 +16,7 @@
 if [ -z "${__funcdebug}" ]
 then
   export DEBUGOFF=0
-  export DEBUGSETX=9
+	export DEBUGSTRACE=5
   export DEBUGNOEXECUTE=6
+  export DEBUGSETX=9
 fi # if [ -z "${__funcdebug}" ]

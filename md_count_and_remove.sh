@@ -29,5 +29,5 @@ echo "Directory count $(find ${directory} -type d -print | wc -l)" > \
 	${filename}
 echo "File count $(find ${directory} -type d -print | wc -l)" >> \
 	${filename}
-time rm -rf ${directory} 2>&1 | tee -a ${filename}
+/usr/bin/time rm -rf ${directory} 2>&1 | tee -a ${filename}
 exit 0

@@ -168,7 +168,7 @@ runner_NUMARGS=1
 runner_debug=${DEBUGOFF}
 
 ####################
-# To expedite testing, we have a special branch on Corona
+# To expedite testing, we have a special bank on Corona
 ####################
 srun_bank="vasttest"
 
@@ -442,6 +442,12 @@ fi
 # get the basename of the filesystem under test
 ####################
 fsbase=${filesystem##*/}
+if [[ "${fsbase}" =~ lustre[1-3] ]]
+then
+	BIN_MD=${LUSTRE_MD_EXEC}
+else
+	BIN_MD=${MD_EXEC}
+fi
 
 ####################
 # sanity check to make sure that the file sytem exists
@@ -779,7 +785,7 @@ x="${testresultdir}/${MD_UPPER}.${fsbase}_${testnamesuffix}.txt"
 	command_date_began=$(date)
 	command_line="srun -A ${srun_bank} ${partitionopt} -n ${numprocs} \
 -N ${srun_NODES} -t ${srun_time} \
-${MD_EXEC} ${default_options} -d ${dirhead} 2>&1 | \
+${BIN_MD} ${default_options} -d ${dirhead} 2>&1 | \
 tee -a ${mdtestname}"
 	echo "COMMAND|${command_date_began}|${command_line}" | \
 		tee -a "${TESTLOG}"
@@ -806,12 +812,12 @@ tee -a ${mdtestname}"
 		  echo "#SBATCH -D /p/lustre3/${USER}" 
 		  echo "#SBATCH --license=${fsbase}" 
 		  echo "#SBATCH --mail-type=all" 
-		  echo "command_date_began=\$(date -u)" 
+		  echo "command_date_began=\$(date)" 
     } >> "${sbatchfile}"
-		batch_command="srun ${MD_EXEC} ${default_options}
+		batch_command="srun ${BIN_MD} ${default_options}
 -o ${filesystem}/$USER/ior.seq 2>&1 | tee -a ${mdtestname} "
-		echo "echo \"COMMAND|\${command_date_began}|${batch_command} | " \
-			"tee -a ${TESTLOG}" >> "${sbatchfile}"
+		echo "echo COMMAND|${command_date_began}|${batch_command} |  \
+			tee -a ${TESTLOG}" >> "${sbatchfile}"
 		echo "${batch_command}" >> "${sbatchfile}"
 	fi
 
@@ -834,11 +840,17 @@ tee -a ${mdtestname}"
 		# Run the benchmark test
 		####################
 		echo "${command_line}"
-		echo "${command_line}" | bash
+		if [ "${runner_strace}" = "FALSE" ]
+		then
+			echo "${command_line}" | bash
+		else
+			echo strace -o${sbatchfile}.strace "${command_line}" | bash
+			cat ${sbatchfile}.strace >> "${sbatchfile}"
+		fi
 
 #		srun ${partitionopt} -n "${numprocs}" -N "${srun_NODES}" \
 #-t "${srun_time}" \
-#"${MD_EXEC}" ${default_options} -d ${dirhead} 2>&1 | \
+#"${BIN_MD}" ${default_options} -d ${dirhead} 2>&1 | \
 #tee -a "${mdtestname}"
 
 if [[ $(grep -c "${SRUNKILLSTRING}" "${mdtestname}") == "1" ]]
